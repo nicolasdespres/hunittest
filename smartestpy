@@ -17,8 +17,17 @@ import time
 from datetime import datetime
 import traceback
 
-# TODO(Nicolas Despres): Make argcomplete optional
+# TODO(Nicolas Despres): argcomplete should be optional
 import argcomplete
+
+# For debugging argcompleter
+SMARTESTPY_DEBUG_ARGCOMPLETE = os.environ.get("SMARTESTPY_DEBUG_ARGCOMPLETE")
+def log_argcomplete(*args):
+    if not SMARTESTPY_DEBUG_ARGCOMPLETE:
+        return
+    with open("/tmp/argcomplete.log", "a") as stream:
+        stream.write(" ".join(str(arg) for arg in args))
+        stream.write("\n")
 
 try:
     from colorama import Fore
@@ -347,27 +356,61 @@ def collect_test_names(test_case):
     return map(lambda x: getattr(test_case, x),
                filter(is_test_method, dir(test_case)))
 
-def build_full_test_name(test_module, test_case, test_method):
-    return ".".join(map(attrgetter("__name__"),
-                        (test_module, test_case, test_method)))
+def build_test_name(test_module, test_case=None, test_method=None):
+    l = [test_module]
+    if test_case is not None:
+        l.append(test_case)
+    if test_method is not None:
+        l.append(test_method)
+    return ".".join(map(attrgetter("__name__"), l))
 
-def collect(directories, pattern):
+def select(name, includes=None):
+    if includes is None:
+        includes = []
+    for prefix in includes:
+        if name.startswith(prefix):
+            yield name
+
+def collect(directories, pattern, yield_group=False, includes=None):
     for directory in directories:
         for test_module in collect_test_modules(directory, pattern=pattern):
+            if yield_group:
+                yield from select(build_test_name(test_module), includes)
             for test_case in collect_test_cases(test_module):
+                if yield_group:
+                    yield from select(build_test_name(test_module, test_case),
+                                      includes)
                 for test_method in collect_test_names(test_case):
-                    yield build_full_test_name(test_module,
-                                               test_case,
-                                               test_method)
+                    yield from select(build_test_name(test_module,
+                                                      test_case,
+                                                      test_method),
+                                      includes)
 
-def reported_collect(printer, directories, pattern):
+def reported_collect(printer, directories, pattern, includes=None):
     test_names = []
-    for n, test_name in enumerate(collect(directories, pattern)):
+    for n, test_name in enumerate(collect(directories, pattern,
+                                          yield_group=False,
+                                          includes=includes)):
         printer.overwrite("collecting {:d}: {}"
                           .format(n+1, test_name))
         test_names.append(test_name)
-        # time.sleep(0.01)
+    printer.overwrite_nl("collected {:d} test(s)".format(len(test_names)))
     return test_names
+
+def collect_directories(options):
+    if not options.directories:
+        for default_test_dir in ("test", "tests"):
+            if os.path.isdir(default_test_dir):
+                yield default_test_dir
+    else:
+        for test_dir in options.directories:
+            yield test_dir
+
+def test_name_completer(prefix, parsed_args, **kwargs):
+    return collect(collect_directories(parsed_args),
+                   parsed_args.pattern,
+                   yield_group=True,
+                   includes=[prefix])
 
 def build_cli():
     parser = argparse.ArgumentParser(
@@ -394,17 +437,18 @@ def build_cli():
         action="store",
         nargs=argparse.REMAINDER,
         default=None,
-        help="Name of test to run.")
+        help="Name of test to run.").completer = test_name_completer
     return parser
 
 def main(argv):
     cli = build_cli()
+    argcomplete.autocomplete(cli)
     options = cli.parse_args(argv[1:])
-    if not options.directories:
-        options.directories.append("test")
+    directories = collect_directories(options)
     isatty = False if options.verbose else None
     printer = LinePrinter(isatty=isatty)
-    test_names = reported_collect(printer, options.directories, options.pattern)
+    test_names = reported_collect(printer, directories, options.pattern,
+                                  includes=options.test_names)
     test_suite = unittest.defaultTestLoader.loadTestsFromNames(test_names)
     result = SmartTestResult(printer, len(test_names))
     test_suite.run(result)

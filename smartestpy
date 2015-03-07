@@ -23,15 +23,22 @@ import functools
 import itertools
 
 
-# TODO(Nicolas Despres): argcomplete should be optional
-import argcomplete
+try:
+    import argcomplete
+except ImportError:
+    sys.stderr.write("info: you can get shell completion by installing "
+                     "'argcomplete'")
+    ARGCOMPLETE_ENABLED = False
+else:
+    ARGCOMPLETE_ENABLED = True
 
 # For debugging argcompleter
 SMARTESTPY_DEBUG_ARGCOMPLETE = os.environ.get("SMARTESTPY_DEBUG_ARGCOMPLETE")
 def log_argcomplete(*args):
     if not SMARTESTPY_DEBUG_ARGCOMPLETE:
         return
-    with open("/tmp/argcomplete.log", "a") as stream:
+    with open(os.environ.get("SMARTESTPY_DEBUG_ARGCOMPLETE_LOG",
+                             "/tmp/argcomplete.log"), "a") as stream:
         stream.write(" ".join(str(arg) for arg in args))
         stream.write("\n")
 
@@ -743,6 +750,11 @@ class FilterAction(argparse.Action):
         pattern = pattern_from_string(self.pattern_type, values)
         filter_rules.append(Rule(self.rule_operator, pattern))
 
+def complete_arg(arg, completer):
+    if ARGCOMPLETE_ENABLED:
+        arg.completer = completer
+    return arg
+
 def build_cli():
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -788,17 +800,19 @@ def build_cli():
         "-c", "--collect-only",
         action="store_true",
         help="Only collect test (do not run anything).")
-    parser.add_argument(
+    arg = parser.add_argument(
         "test_specs",
         action="store",
         nargs=argparse.REMAINDER,
         default=None,
-        help="Test directory/module/TestCase/test_method.").completer = test_spec_completer
+        help="Test directory/module/TestCase/test_method.")
+    complete_arg(arg, test_spec_completer)
     return parser
 
 def main(argv):
     cli = build_cli()
-    argcomplete.autocomplete(cli)
+    if ARGCOMPLETE_ENABLED:
+        argcomplete.autocomplete(cli)
     options = cli.parse_args(argv[1:])
     filter_rules = options.filter_rules
     if filter_rules is None:

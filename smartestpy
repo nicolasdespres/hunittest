@@ -503,73 +503,74 @@ def build_test_name(test_module, test_case=None, test_method=None):
             return x
     return pyname_join(map(transform, l))
 
-def collect_all_test_modules(directory, pattern):
-    for _, name, ispkg in pkgutil.walk_packages(path=[directory]):
-        if not ispkg and re.match(pattern, name):
-            modname = "{}.{}".format(os.path.basename(directory), name)
-            mod = import_module(modname)
-            yield mod
+def collect_all_test_modules(package, pattern):
+    directory = os.path.dirname(package.__file__)
+    for finder, name, ispkg in pkgutil.walk_packages(path=[directory]):
+        if ispkg:
+            fullname = pyname_join((package.__name__, name))
+            mod = finder.find_module(fullname).load_module()
+            yield from collect_all_test_modules(mod, pattern)
+        else:
+            if re.match(pattern, name):
+                fullname = pyname_join((package.__name__, name))
+                yield finder.find_module(fullname).load_module()
 
 class TestSpecType(Enum):
-    directory = 1
+    package = 1
     module = 2
     test_case = 3
     test_method = 4
+
+def is_pkg(mod):
+    return os.path.basename(mod.__file__) == "__init__.py"
+
+class InvalidTestSpecError(Exception):
+
+    def __init__(self, test_spec, message):
+        self.test_spec = test_spec
+        self.message = message
+
+    def __str__(self):
+        return "invalid test spec '{}': {}".format(self.test_spec,
+                                                   self.message)
 
 def get_test_spec_type(test_spec):
     if not test_spec:
         raise ValueError("empty test spec")
     spec = test_spec.split(".")
     assert len(spec) > 0
-    ### Directory?
-    dirspec = os.path.join(*spec)
-    if is_pkgdir(dirspec):
-        return (TestSpecType.directory, dirspec)
-    ### Module?
-    modspec = pyname_join(spec)
-    try:
-        mod = import_module(modspec)
-    except ImportError:
-        pass
-    else:
-        return (TestSpecType.module, mod)
-    ### Test Case?
-    modspec = pyname_join(spec[:-1])
-    test_case_name = spec[-1]
-    try:
-        mod = import_module(modspec)
-    except ImportError:
-        pass
-    else:
-        test_case = getattr(mod, test_case_name)
-        return (TestSpecType.test_case, test_case)
-    ### Test method?
-    modspec = pyname_join(spec[:-2])
-    test_case_name = spec[-2]
-    test_method_name = spec[-1]
-    try:
-        mod = import_module(modspec)
-    except ImportError as e:
-        error = str(e)
-        pass
-    else:
+    mod = None
+    for i in range(len(spec)-1, -1, -1):
         try:
-            test_case = getattr(mod, test_case_name)
-        except AttributeError as e:
-            error = "no test case '{}' in '{}'"\
-                .format(test_case_name, modspec)
+            mod = import_module(pyname_join(spec[:i+1]))
+        except ImportError:
             pass
         else:
+            break
+    if mod is None:
+        raise InvalidTestSpecError(test_spec, "failed to import anything")
+    mods = spec[:i+1]
+    attrs = spec[i+1:]
+    if not attrs:
+        if is_pkg(mod): # Package
+            return (TestSpecType.package, mod)
+        else: # module
+            return (TestSpecType.module, mod)
+    else:
+        obj = mod
+        for i in range(len(attrs)):
+            attr = attrs[i]
             try:
-                test_method = getattr(test_case, test_method_name)
+                obj = getattr(obj, attr)
             except AttributeError:
-                error = "no test method '{}' in '{}.{}'"\
-                    .format(test_method_name, modspec, test_case_name)
-                pass
-            else:
-                return (TestSpecType.test_method, test_method)
-    raise RuntimeError("cannot get type of test spec '{}': "
-                       .format(test_spec, error))
+                raise InvalidTestSpecError(
+                    test_spec,
+                    "cannot get attribute '{}' from '{}'"
+                    .format(attr, pyname_join(mods+attrs[:i])))
+        if is_test_case(obj):
+            return (TestSpecType.test_case, obj)
+        else:
+            return (TestSpecType.test_method, obj)
 
 def collect_all_from_test_case(test_case):
     for test_method in collect_test_names(test_case):
@@ -579,21 +580,21 @@ def collect_all_from_module(test_module):
     for test_case in collect_test_cases(test_module):
         yield from collect_all_from_test_case(test_case)
 
-def collect_all_from_directory(directory, pattern):
-    for test_module in collect_all_test_modules(directory, pattern):
+def collect_all_from_package(package, pattern):
+    for test_module in collect_all_test_modules(package, pattern):
         yield from collect_all_from_module(test_module)
 
 def collect_all(test_specs, pattern):
     for test_spec in test_specs:
         tst, value = get_test_spec_type(test_spec)
-        if tst is TestSpecType.directory:
-            yield from collect_all_from_directory(value, pattern)
+        if tst is TestSpecType.package:
+            yield from collect_all_from_package(value, pattern)
         elif tst is TestSpecType.module:
             yield from collect_all_from_module(value)
         elif tst is TestSpecType.test_case:
             yield from collect_all_from_test_case(value)
         elif tst is TestSpecType.test_method:
-            yield value
+            yield pyname_join((value.__module__, value.__qualname__))
         else:
             raise RuntimeError("unsupported test spec type: {}"
                                .format(tst))

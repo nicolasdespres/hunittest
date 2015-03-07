@@ -11,11 +11,17 @@ import pkgutil
 import re
 from importlib import import_module
 import unittest
-from operator import attrgetter
+import operator
 from pprint import pprint
 import time
 from datetime import datetime
 import traceback
+from enum import Enum
+from collections import namedtuple
+import fnmatch
+import functools
+import itertools
+
 
 # TODO(Nicolas Despres): argcomplete should be optional
 import argcomplete
@@ -79,18 +85,24 @@ class LinePrinter(object):
 
     def reset(self):
         self.prev_line = None
+        self._last_is_nl = True
+
+    def _write(self, string):
+        self._last_is_nl = string.endswith("\n")
+        self.output.write(string)
 
     def write(self, string):
         if self.quiet:
             return
-        self.output.write(string)
+        self._write(string)
 
-    def write_nl(self, line):
+    def write_nl(self, line, auto=True):
         self.write(line)
-        self.new_line()
+        self.new_line(auto=auto)
 
-    def new_line(self):
-        self.write("\n")
+    def new_line(self, auto=True):
+        if not auto or not self._last_is_nl:
+            self.write("\n")
         self.reset()
 
     def overwrite(self, line):
@@ -110,9 +122,9 @@ class LinePrinter(object):
         self.prev_line = line
         self.output.flush()
 
-    def overwrite_nl(self, line):
+    def overwrite_nl(self, line, auto=True):
         self.overwrite(line)
-        self.new_line()
+        self.new_line(auto=auto)
 
 class StopWatch(object):
 
@@ -334,27 +346,142 @@ class SmartTestResult(unittest.TestResult):
         super(SmartTestResult, self).addUnexpectedFailure(test)
         self._print_message(test, "unexpected_success")
 
-def collect_test_modules(directory, pattern):
-    for _, name, ispkg in pkgutil.walk_packages(path=[directory]):
-        if not ispkg and re.match(pattern, name):
-            modname = "{}.{}".format(os.path.basename(directory), name)
-            mod = import_module(modname)
-            yield mod
+def pyname_join(seq):
+    return ".".join(seq)
+
+class RuleOperator(Enum):
+    include = "+"
+    exclude = "-"
+
+class Rule(namedtuple("BaseRule", ("operator", "pattern"))):
+
+    def __new__(cls, operator=None, pattern=None):
+        if not isinstance(operator, RuleOperator):
+            raise TypeError("must be a rule operator, not {}"
+                            .format(type(operator).__name__))
+        if not pattern:
+            raise ValueError("pattern cannot be empty")
+        try:
+            re.compile(pattern)
+        except re.error:
+            raise ValueError("invalid pattern '{}': {}"
+                             .format(pattern, str(e)))
+        return super(Rule, cls).__new__(cls, operator, pattern)
+
+    @property
+    def include(self):
+        return self.operator is RuleOperator.include
+
+    @property
+    def exclude(self):
+        return self.operator is RuleOperator.exclude
+
+    def __str__(self):
+        return "{} /{}/".format(self.operator.value, self.pattern)
+
+    def match(self, string):
+        # print("STRING", repr(string))
+        if re.search(self.pattern, string):
+            if self.include:
+                r = True
+            elif self.exclude:
+                r = False
+            else:
+                raise RuntimeError("unsupported rule operator: {}"
+                                   .format(self.operator))
+        else:
+            if self.include:
+                r = False
+            elif self.exclude:
+                r = True
+            else:
+                raise RuntimeError("unsupported rule operator: {}"
+                                   .format(self.operator))
+        # print("apply rule {} on {} => {}".format(self, string, r))
+        return r
+
+    def __repr__(self):
+        return "{}({}, {!r})"\
+            .format(type(self).__name__,
+                    str(self.operator),
+                    self.pattern)
+
+class FilterRules(object):
+
+    def __init__(self, rules=None):
+        self._rules = []
+        self.include_everything()
+        self.exclude_nothing()
+        if rules is None:
+            rules = []
+        for rule in rules:
+            self.append(rule)
+
+    def append(self, rule):
+        self._rules.append(rule)
+
+    def include_pattern(self, pattern):
+        self.append(Rule(RuleOperator.include, pattern))
+
+    def include_prefix(self, prefix):
+        self.include_pattern(r"^{}".format(prefix))
+
+    def include_everything(self):
+        self.include_pattern(r"^.*$")
+
+    def exclude_pattern(self, pattern):
+        self.append(Rule(RuleOperator.exclude, pattern))
+
+    def exclude_prefix(self, prefix):
+        self.exclude_pattern(r"^{}".format(prefix))
+
+    def exclude_nothing(self):
+        self.exclude_pattern(r"nothing^")
+
+    def __iter__(self):
+        return iter(self._rules)
+
+    def __call__(self, iterable, key=None):
+        # print("FILTERRULE ON", repr(iterable))
+        def matcher(rule, item):
+            # print("ITEM", repr(item))
+            if key is None:
+                string = item
+            else:
+                string = key(item)
+            # print("TESTED STRING", string)
+            return rule.match(string)
+        for rule in self._rules:
+            iterable = filter(functools.partial(matcher, rule), iterable)
+        return iterable
+
+    def __repr__(self):
+        return "{:s}([{}])".format(type(self).__name__,
+                                   ", ".join("'{!s}'".format(r)
+                                             for r in self._rules))
 
 def is_test_case(obj):
     return isinstance(obj, type) and issubclass(obj, unittest.TestCase)
 
-def collect_test_cases(module):
-    return filter(is_test_case,
-                  map(lambda x: getattr(module, x),
-                      dir(module)))
+def collect_test_cases(module, filter_rules=None):
+    if filter_rules is None:
+        filter_rules = FilterRules()
+    return filter_rules(filter(is_test_case,
+                               map(lambda x: getattr(module, x),
+                                   dir(module))),
+                        key=functools.partial(build_test_name, module))
 
 def is_test_method(name):
     return re.match(r"^test_", name)
 
-def collect_test_names(test_case):
-    return map(lambda x: getattr(test_case, x),
-               filter(is_test_method, dir(test_case)))
+def collect_test_names(test_case, filter_rules=None):
+    if filter_rules is None:
+        filter_rules = FilterRules()
+    return filter_rules(map(functools.partial(getattr, test_case),
+                            filter(is_test_method, dir(test_case))),
+                        key=functools.partial(build_test_name,
+                                              test_case.__module__,
+                                              test_case))
 
 def build_test_name(test_module, test_case=None, test_method=None):
     l = [test_module]
@@ -362,55 +489,259 @@ def build_test_name(test_module, test_case=None, test_method=None):
         l.append(test_case)
     if test_method is not None:
         l.append(test_method)
-    return ".".join(map(attrgetter("__name__"), l))
+    def transform(x):
+        if hasattr(x, "__name__"):
+            return x.__name__
+        else:
+            return x
+    return pyname_join(map(transform, l))
 
-def select(name, includes=None):
-    if includes is None:
-        includes = []
-    for prefix in includes:
-        if name.startswith(prefix):
-            yield name
+def collect_all_test_modules(directory, pattern):
+    for _, name, ispkg in pkgutil.walk_packages(path=[directory]):
+        if not ispkg and re.match(pattern, name):
+            modname = "{}.{}".format(os.path.basename(directory), name)
+            mod = import_module(modname)
+            yield mod
 
-def collect(directories, pattern, yield_group=False, includes=None):
-    for directory in directories:
-        for test_module in collect_test_modules(directory, pattern=pattern):
-            if yield_group:
-                yield from select(build_test_name(test_module), includes)
-            for test_case in collect_test_cases(test_module):
-                if yield_group:
-                    yield from select(build_test_name(test_module, test_case),
-                                      includes)
-                for test_method in collect_test_names(test_case):
-                    yield from select(build_test_name(test_module,
-                                                      test_case,
-                                                      test_method),
-                                      includes)
+class TestSpecType(Enum):
+    directory = 1
+    module = 2
+    test_case = 3
+    test_method = 4
 
-def reported_collect(printer, directories, pattern, includes=None):
+def get_test_spec_type(test_spec):
+    if not test_spec:
+        raise ValueError("empty test spec")
+    spec = test_spec.split(".")
+    assert len(spec) > 0
+    ### Directory?
+    dirspec = os.path.join(*spec)
+    if is_pkgdir(dirspec):
+        return (TestSpecType.directory, dirspec)
+    ### Module?
+    modspec = pyname_join(spec)
+    try:
+        mod = import_module(modspec)
+    except ImportError:
+        pass
+    else:
+        return (TestSpecType.module, mod)
+    ### Test Case?
+    modspec = pyname_join(spec[:-1])
+    test_case_name = spec[-1]
+    try:
+        mod = import_module(modspec)
+    except ImportError:
+        pass
+    else:
+        test_case = getattr(mod, test_case_name)
+        return (TestSpecType.test_case, test_case)
+    ### Test method?
+    modspec = pyname_join(spec[:-2])
+    test_case_name = spec[-2]
+    test_method_name = spec[-1]
+    try:
+        mod = import_module(modspec)
+    except ImportError as e:
+        error = str(e)
+        pass
+    else:
+        try:
+            test_case = getattr(mod, test_case_name)
+        except AttributeError as e:
+            error = "no test case '{}' in '{}'"\
+                .format(test_case_name, modspec)
+            pass
+        else:
+            try:
+                test_method = getattr(test_case, test_method_name)
+            except AttributeError:
+                error = "no test method '{}' in '{}.{}'"\
+                    .format(test_method_name, modspec, test_case_name)
+                pass
+            else:
+                return (TestSpecType.test_method, test_method)
+    raise RuntimeError("cannot get type of test spec '{}': "
+                       .format(test_spec, error))
+
+def collect_all_from_test_case(test_case):
+    for test_method in collect_test_names(test_case):
+        yield build_test_name(test_case.__module__, test_case, test_method)
+
+def collect_all_from_module(test_module):
+    for test_case in collect_test_cases(test_module):
+        yield from collect_all_from_test_case(test_case)
+
+def collect_all_from_directory(directory, pattern):
+    for test_module in collect_all_test_modules(directory, pattern):
+        yield from collect_all_from_module(test_module)
+
+def collect_all(test_specs, pattern):
+    for test_spec in test_specs:
+        tst, value = get_test_spec_type(test_spec)
+        if tst is TestSpecType.directory:
+            yield from collect_all_from_directory(value, pattern)
+        elif tst is TestSpecType.module:
+            yield from collect_all_from_module(value)
+        elif tst is TestSpecType.test_case:
+            yield from collect_all_from_test_case(value)
+        elif tst is TestSpecType.test_method:
+            yield value
+        else:
+            raise RuntimeError("unsupported test spec type: {}"
+                               .format(tst))
+
+def reported_collect(printer, test_specs, pattern, filter_rules):
+    collection = collect_all(test_specs, pattern)
     test_names = []
-    for n, test_name in enumerate(collect(directories, pattern,
-                                          yield_group=False,
-                                          includes=includes)):
+    for n, test_name in enumerate(filter_rules(collection)):
         printer.overwrite("collecting {:d}: {}"
                           .format(n+1, test_name))
         test_names.append(test_name)
     printer.overwrite_nl("collected {:d} test(s)".format(len(test_names)))
     return test_names
 
-def collect_directories(options):
-    if not options.directories:
-        for default_test_dir in ("test", "tests"):
-            if os.path.isdir(default_test_dir):
-                yield default_test_dir
-    else:
-        for test_dir in options.directories:
-            yield test_dir
+def is_pkgdir(dirpath):
+    return os.path.isdir(dirpath) \
+        and os.path.isfile(os.path.join(dirpath, "__init__.py"))
 
-def test_name_completer(prefix, parsed_args, **kwargs):
-    return collect(collect_directories(parsed_args),
-                   parsed_args.pattern,
-                   yield_group=True,
-                   includes=[prefix])
+def get_current_packages():
+    for name in os.listdir("."):
+        if is_pkgdir(name):
+            yield name
+
+def collect_from_test_suite(test_suite):
+    """Generate all test full names in *test_suite* recursively.
+    """
+    def rec(test_suite):
+        for t in test_suite:
+            if isinstance(t, unittest.TestSuite):
+                yield from rec(t._tests)
+            elif isinstance(t, unittest.TestCase):
+                yield pyname_join((t.__module__,
+                                   t.__class__.__name__,
+                                   t._testMethodName))
+            else:
+                raise RuntimeError("do not know what to do with {!r}".format(t))
+    if not isinstance(test_suite, unittest.TestSuite):
+        raise TypeError("must be a unittest.TestSuite, not {}"
+                        .format(type(test_suite).__name__))
+    yield from rec(test_suite)
+
+def mod_split(modname):
+    mo = re.match(r"^(.+)\.(.*)$", modname)
+    if not mo:
+        raise ValueError("invalid python path identifier")
+    return (mo.group(1), mo.group(2))
+
+def argcomplete_directories(parsed_args, prefix):
+    directories = directories_from_options(parsed_args)
+    for directory in get_current_packages():
+        if directory.startswith(prefix):
+            yield directory
+
+def argcomplete_modules(directory, pattern, prefix):
+    for _, name, ispkg in pkgutil.iter_modules(path=[directory]):
+        if not name.startswith(prefix):
+            continue
+        if ispkg or re.match(pattern, name):
+            yield pyname_join((directory, name))
+
+def argcomplete_test_cases(module, prefix):
+    for test_case in collect_test_cases(module):
+        name = test_case.__name__
+        if name.startswith(prefix):
+            yield pyname_join((module.__name__, name))
+
+def argcomplete_test_methods(test_case, prefix):
+    for test_method in collect_test_names(test_case):
+        name = test_method.__name__
+        if name.startswith(prefix):
+            yield pyname_join((test_case.__module__,
+                               test_case.__name__,
+                               name))
+
+def test_spec_completer(prefix, parsed_args, **kwargs):
+    log_argcomplete("-" * 20)
+    log_argcomplete("prefix", repr(prefix))
+    log_argcomplete("kwargs", repr(kwargs))
+    spec = prefix.split(".")
+    assert len(spec) > 0
+    ### We have (almost) nothing => yield directories.
+    if len(spec) == 1:
+        log_argcomplete("complete directories")
+        yield from argcomplete_directories(parsed_args, spec[0])
+        return
+    subspec = spec[:-1]
+    rest = spec[-1]
+    dirspec = os.path.join(*subspec)
+    ### We have a directory => yield contained modules
+    if os.path.isdir(dirspec):
+        log_argcomplete("complete module")
+        yield from argcomplete_modules(dirspec, parsed_args.pattern,
+                                       rest)
+        return
+    ### We have a module => yield contained test case
+    try:
+        pyspec = pyname_join(subspec)
+        mod = import_module(pyspec)
+    except ImportError:
+        log_argcomplete("cannot import {}".format(pyspec))
+        pass
+    else:
+        log_argcomplete("complete test case")
+        yield from argcomplete_test_cases(mod, rest)
+        return
+    ### We have a test case => yield contained test methods
+    modspec = pyname_join(subspec[:-1])
+    test_case_name = subspec[-1]
+    test_case = getattr(import_module(modspec), test_case_name)
+    yield from argcomplete_test_methods(test_case, rest)
+
+class PatternType(Enum):
+    glob = 1
+    regex = 2
+
+def pattern_from_string(pattern_type, string):
+    if pattern_type is PatternType.glob:
+        return fnmatch.translate(string)
+    elif pattern_type is PatternType.regex:
+        return string
+    else:
+        raise ValueError("unsupported pattern type: {}".format(pattern_type))
+
+class FilterAction(argparse.Action):
+
+    DEST = "filter_rules"
+
+    def __init__(self, option_strings, dest, nargs=None,
+                 filter_rule_operator=None, pattern_type=None,
+                 **kwargs):
+        if nargs is not None:
+            raise ValueError("nargs not allowed")
+        if filter_rule_operator is None:
+            raise ValueError("filter_rule_operator must be set")
+        if not isinstance(filter_rule_operator, RuleOperator):
+            raise TypeError("must be a rule operator, not {!r}"
+                            .format(type(rule_operator).__name__))
+        self.rule_operator = filter_rule_operator
+        if pattern_type is None:
+            raise ValueError("pattern_type must be set")
+        if not isinstance(pattern_type, PatternType):
+            raise TypeError("must be a pattern type, not {!r}"
+                            .format(type(pattern_type).__name__))
+        self.pattern_type = pattern_type
+        super(FilterAction, self).__init__(option_strings,
+                                           self.DEST,
+                                           **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        filter_rules = getattr(namespace, self.DEST)
+        if filter_rules is None:
+            filter_rules = FilterRules()
+            setattr(namespace, self.DEST, filter_rules)
+        pattern = pattern_from_string(self.pattern_type, values)
+        filter_rules.append(Rule(self.rule_operator, pattern))
 
 def build_cli():
     parser = argparse.ArgumentParser(
@@ -426,29 +757,61 @@ def build_cli():
         default=r"^test_",
         help="Only module name matching this pattern gets collected")
     parser.add_argument(
-        "-d", "--directory",
-        action="append",
-        dest="directories",
-        metavar="DIRECTORY",
-        default=[],
-        help="Directory where to look for test (can be used multiple times).")
+        "-e", "--exclude",
+        metavar="GLOB_PATTERN",
+        action=FilterAction,
+        filter_rule_operator=RuleOperator.exclude,
+        pattern_type=PatternType.glob,
+        help="Add an exclude glob pattern filter rule.")
     parser.add_argument(
-        "test_names",
+        "-i", "--include",
+        metavar="GLOB_PATTERN",
+        action=FilterAction,
+        filter_rule_operator=RuleOperator.include,
+        pattern_type=PatternType.glob,
+        help="Add an include glob pattern filter rule.")
+    parser.add_argument(
+        "--re",
+        metavar="REGEX_PATTERN",
+        action=FilterAction,
+        filter_rule_operator=RuleOperator.exclude,
+        pattern_type=PatternType.regex,
+        help="Add an exclude regex pattern filter rule.")
+    parser.add_argument(
+        "--ri",
+        metavar="REGEX_PATTERN",
+        action=FilterAction,
+        filter_rule_operator=RuleOperator.include,
+        pattern_type=PatternType.regex,
+        help="Add an include regex pattern filter rule.")
+    parser.add_argument(
+        "-c", "--collect-only",
+        action="store_true",
+        help="Only collect test (do not run anything).")
+    parser.add_argument(
+        "test_specs",
         action="store",
         nargs=argparse.REMAINDER,
         default=None,
-        help="Name of test to run.").completer = test_name_completer
+        help="Test directory/module/TestCase/test_method.").completer = test_spec_completer
     return parser
 
 def main(argv):
     cli = build_cli()
     argcomplete.autocomplete(cli)
     options = cli.parse_args(argv[1:])
-    directories = collect_directories(options)
+    filter_rules = options.filter_rules
+    if filter_rules is None:
+        filter_rules = FilterRules()
+    test_specs = options.test_specs
+    if not test_specs:
+        test_specs = list(get_current_packages())
     isatty = False if options.verbose else None
     printer = LinePrinter(isatty=isatty)
-    test_names = reported_collect(printer, directories, options.pattern,
-                                  includes=options.test_names)
+    test_names = reported_collect(printer, test_specs, options.pattern,
+                                  filter_rules)
+    if options.collect_only:
+        return 0
     test_suite = unittest.defaultTestLoader.loadTestsFromNames(test_names)
     result = SmartTestResult(printer, len(test_names))
     test_suite.run(result)

@@ -537,7 +537,14 @@ class InvalidTestSpecError(Exception):
 def get_test_spec_type(test_spec):
     if not test_spec:
         raise ValueError("empty test spec")
-    spec = test_spec.split(".")
+    if isinstance(test_spec, str):
+        spec = test_spec.split(".")
+    elif isinstance(test_spec, (list, tuple)):
+        spec = test_spec
+        test_spec = pyname_join(spec)
+    else:
+        raise TypeError("must be a str, list or tuple, not {!r}"
+                        .format(type(test_spec).__name__))
     assert len(spec) > 0
     mod = None
     for i in range(len(spec)-1, -1, -1):
@@ -642,18 +649,19 @@ def mod_split(modname):
         raise ValueError("invalid python path identifier")
     return (mo.group(1), mo.group(2))
 
-def argcomplete_directories(parsed_args, prefix):
-    directories = directories_from_options(parsed_args)
+def argcomplete_directories(prefix):
     for directory in get_current_packages():
         if directory.startswith(prefix):
             yield directory
 
-def argcomplete_modules(directory, pattern, prefix):
+def argcomplete_modules(package, pattern, prefix):
+    directory = os.path.dirname(package.__file__)
     for _, name, ispkg in pkgutil.iter_modules(path=[directory]):
         if not name.startswith(prefix):
             continue
         if ispkg or re.match(pattern, name):
-            yield pyname_join((directory, name))
+            fullname = pyname_join((package.__name__, name))
+            yield fullname
 
 def argcomplete_test_cases(module, prefix):
     for test_case in collect_test_cases(module):
@@ -675,36 +683,24 @@ def test_spec_completer(prefix, parsed_args, **kwargs):
     log_argcomplete("kwargs", repr(kwargs))
     spec = prefix.split(".")
     assert len(spec) > 0
-    ### We have (almost) nothing => yield directories.
     if len(spec) == 1:
         log_argcomplete("complete directories")
-        yield from argcomplete_directories(parsed_args, spec[0])
-        return
-    subspec = spec[:-1]
-    rest = spec[-1]
-    dirspec = os.path.join(*subspec)
-    ### We have a directory => yield contained modules
-    if os.path.isdir(dirspec):
-        log_argcomplete("complete module")
-        yield from argcomplete_modules(dirspec, parsed_args.pattern,
-                                       rest)
-        return
-    ### We have a module => yield contained test case
-    try:
-        pyspec = pyname_join(subspec)
-        mod = import_module(pyspec)
-    except ImportError:
-        log_argcomplete("cannot import {}".format(pyspec))
-        pass
+        yield from argcomplete_directories(spec[0])
     else:
-        log_argcomplete("complete test case")
-        yield from argcomplete_test_cases(mod, rest)
-        return
-    ### We have a test case => yield contained test methods
-    modspec = pyname_join(subspec[:-1])
-    test_case_name = subspec[-1]
-    test_case = getattr(import_module(modspec), test_case_name)
-    yield from argcomplete_test_methods(test_case, rest)
+        test_spec = spec[:-1]
+        rest = spec[-1]
+        tst, obj = get_test_spec_type(test_spec)
+        if tst is TestSpecType.package:
+            yield from argcomplete_modules(obj, parsed_args.pattern, rest)
+        elif tst is TestSpecType.module:
+            yield from argcomplete_test_cases(obj, rest)
+        elif tst is TestSpecType.test_case:
+            yield from argcomplete_test_methods(obj, rest)
+        elif tst is TestSpecType.test_method:
+            pass # nothing to complete
+        else:
+            raise RuntimeError("unsupported test spec type: {}"
+                               .format(tst))
 
 class PatternType(Enum):
     glob = 1

@@ -680,10 +680,15 @@ def argcomplete_test_methods(test_case, prefix):
                                test_case.__name__,
                                name))
 
-def test_spec_completer(prefix, parsed_args, **kwargs):
-    log_argcomplete("-" * 20)
-    log_argcomplete("prefix", repr(prefix))
-    log_argcomplete("kwargs", repr(kwargs))
+def is_empty_generator(generator):
+    try:
+        next(generator)
+    except StopIteration:
+        return True
+    else:
+        return False
+
+def gen_test_spec_completion(prefix, parsed_args):
     spec = prefix.split(".")
     assert len(spec) > 0
     if len(spec) == 1:
@@ -704,6 +709,21 @@ def test_spec_completer(prefix, parsed_args, **kwargs):
         else:
             raise RuntimeError("unsupported test spec type: {}"
                                .format(tst))
+
+def with_next_completion(completion, parsed_args):
+    yield completion
+    next_completion = completion + "."
+    next_completions = gen_test_spec_completion(next_completion, parsed_args)
+    if not is_empty_generator(next_completions):
+        yield next_completion
+
+def test_spec_completer(prefix, parsed_args, **kwargs):
+    log_argcomplete("-" * 20)
+    log_argcomplete("prefix", repr(prefix))
+    log_argcomplete("kwargs", repr(kwargs))
+    completions = gen_test_spec_completion(prefix, parsed_args)
+    for n, completion in enumerate(completions):
+        yield from with_next_completion(completion, parsed_args)
 
 class PatternType(Enum):
     glob = 1

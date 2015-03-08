@@ -908,6 +908,11 @@ def build_cli():
     return parser
 
 def main(argv):
+    # Patch sys.path with current directory otherwise import_module get
+    # confused.
+    cwd = os.getcwd()
+    if cwd not in sys.path:
+        sys.path.insert(0, cwd)
     cli = build_cli()
     if ARGCOMPLETE_ENABLED:
         argcomplete.autocomplete(cli)

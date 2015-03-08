@@ -1,0 +1,6 @@
+# Python's stuff
+__pycache__/
+*.pyc
+
+# TAGS for Emacs.
+/TAGS

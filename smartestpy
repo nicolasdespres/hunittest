@@ -15,6 +15,7 @@ import operator
 from pprint import pprint
 import time
 from datetime import datetime
+from datetime import timedelta
 import traceback
 from enum import Enum
 from collections import namedtuple
@@ -166,6 +167,10 @@ class StopWatch(object):
     @property
     def last_laps_time(self):
         return self._last_laps_time
+
+    @property
+    def total_time(self):
+        return timedelta(microseconds=self._total_time)
 
 class SmartTestResult(unittest.TestResult):
 
@@ -352,6 +357,33 @@ class SmartTestResult(unittest.TestResult):
     def addUnexpectedSuccess(self, test):
         super(SmartTestResult, self).addUnexpectedFailure(test)
         self._print_message(test, "unexpected_success")
+
+    def _format_run_status(self):
+        if self.wasSuccessful():
+            color = self.SUCCESS_COLOR
+        else:
+            color = self.FAILURE_COLOR
+        return color + "Run" + Fore.RESET
+
+    def print_summary(self):
+        counters = {}
+        counter_formats = []
+        for status in self.ALL_STATUS:
+            counters[status] = self.status_color(status) \
+                               + str(self.get_status_counter(status)) \
+                               + Fore.RESET
+            counter_formats.append("{{{s}}} {s}".format(s=status))
+
+        formatter = "{run_status} {run_count}/{total_count} tests in "\
+                    "{elapsed_time}: "
+        formatter += " ".join(counter_formats)
+        msg = formatter.format(
+            run_status=self._format_run_status(),
+            run_count=self.testsRun,
+            total_count=self._total_tests,
+            elapsed_time=self._stopwatch.total_time,
+            **counters)
+        self._printer.overwrite(msg)
 
 def pyname_join(seq):
     return ".".join(seq)
@@ -617,9 +649,9 @@ def reported_collect(printer, test_specs, pattern, filter_rules):
                           .format(n+1, test_name))
         test_names.append(test_name)
     if len(test_names) == 0:
-        printer.overwrite_nl("no test collected")
+        printer.overwrite("no test collected")
     else:
-        printer.overwrite_nl("collected {:d} test(s)".format(len(test_names)))
+        printer.overwrite("collected {:d} test(s)".format(len(test_names)))
     return test_names
 
 def is_pkgdir(dirpath):
@@ -852,6 +884,7 @@ def main(argv):
     test_suite = unittest.defaultTestLoader.loadTestsFromNames(test_names)
     result = SmartTestResult(printer, len(test_names))
     test_suite.run(result)
+    result.print_summary()
     printer.new_line()
     return 0 if result.wasSuccessful() else 1
 

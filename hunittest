@@ -926,6 +926,7 @@ def main(argv):
     test_names = reported_collect(printer, test_specs, options.pattern,
                                   filter_rules)
     if options.collect_only:
+        printer.new_line()
         return 0
     test_suite = unittest.defaultTestLoader.loadTestsFromNames(test_names)
     result = SmartTestResult(printer, len(test_names))

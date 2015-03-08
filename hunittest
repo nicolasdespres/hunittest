@@ -390,12 +390,11 @@ class SmartTestResult(unittest.TestResult):
                                + Fore.RESET
             counter_formats.append("{{{s}}} {s}".format(s=status))
 
-        formatter = "{run_status} {run_count}/{total_count} tests in "\
+        formatter = "{run_status} {total_count} tests in "\
                     "{elapsed_time}: "
         formatter += " ".join(counter_formats)
         msg = formatter.format(
             run_status=self._format_run_status(),
-            run_count=self.testsRun,
             total_count=self._total_tests,
             elapsed_time=self._stopwatch.total_time,
             **counters)

@@ -553,6 +553,7 @@ def build_test_name(test_module, test_case=None, test_method=None):
 
 def collect_all_test_modules(package, pattern):
     directory = os.path.dirname(package.__file__)
+    assert directory.startswith(os.getcwd())
     # We cannot use the finder to load the module because it mess up unittest.
     # Using import_module() is fine.
     for finder, name, ispkg in pkgutil.walk_packages(path=[directory]):
@@ -607,6 +608,11 @@ def get_test_spec_type(test_spec):
             break
     if mod is None:
         raise InvalidTestSpecError(test_spec, "failed to import anything")
+    if not os.path.dirname(mod.__file__).startswith(os.getcwd()):
+        raise InvalidTestSpecError(
+            test_spec,
+            "package or module '{}' refers outside of your current directory "
+            "you should set PYTHONPATH=.".format(mod.__name__))
     mods = spec[:i+1]
     attrs = spec[i+1:]
     if not attrs:

@@ -815,7 +815,7 @@ def git_describe(cwd="."):
     return description.decode().strip()
 
 def get_version():
-    return git_describe(cwd=os.path.dirname(__file__))
+    return git_describe(cwd=os.path.dirname(os.path.realpath(__file__)))
 
 def build_cli():
     parser = argparse.ArgumentParser(

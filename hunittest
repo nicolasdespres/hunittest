@@ -34,16 +34,6 @@ except ImportError:
 else:
     ARGCOMPLETE_ENABLED = True
 
-# For debugging argcompleter
-SMARTESTPY_DEBUG_ARGCOMPLETE = os.environ.get("SMARTESTPY_DEBUG_ARGCOMPLETE")
-def log_argcomplete(*args):
-    if not SMARTESTPY_DEBUG_ARGCOMPLETE:
-        return
-    with open(os.environ.get("SMARTESTPY_DEBUG_ARGCOMPLETE_LOG",
-                             "/tmp/argcomplete.log"), "a") as stream:
-        stream.write(" ".join(str(arg) for arg in args))
-        stream.write("\n")
-
 try:
     from colorama import Fore
 except ImportError:
@@ -728,7 +718,6 @@ def gen_test_spec_completion(prefix, parsed_args):
     spec = prefix.split(".")
     assert len(spec) > 0
     if len(spec) == 1:
-        log_argcomplete("complete directories")
         yield from argcomplete_directories(spec[0])
     else:
         test_spec = spec[:-1]
@@ -754,9 +743,6 @@ def with_next_completion(completion, parsed_args):
         yield next_completion
 
 def test_spec_completer(prefix, parsed_args, **kwargs):
-    log_argcomplete("-" * 20)
-    log_argcomplete("prefix", repr(prefix))
-    log_argcomplete("kwargs", repr(kwargs))
     completions = gen_test_spec_completion(prefix, parsed_args)
     for n, completion in enumerate(completions):
         yield from with_next_completion(completion, parsed_args)

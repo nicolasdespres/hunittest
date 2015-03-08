@@ -616,7 +616,10 @@ def reported_collect(printer, test_specs, pattern, filter_rules):
         printer.overwrite("collecting {:d}: {}"
                           .format(n+1, test_name))
         test_names.append(test_name)
-    printer.overwrite_nl("collected {:d} test(s)".format(len(test_names)))
+    if len(test_names) == 0:
+        printer.overwrite_nl("no test collected")
+    else:
+        printer.overwrite_nl("collected {:d} test(s)".format(len(test_names)))
     return test_names
 
 def is_pkgdir(dirpath):

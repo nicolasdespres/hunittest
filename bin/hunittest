@@ -185,8 +185,7 @@ def main(argv):
         printer.new_line()
         return 0
     test_suite = unittest.defaultTestLoader.loadTestsFromNames(test_names)
-    result = HTestResult(printer, len(test_names))
-    result.failfast = options.failfast
+    result = HTestResult(printer, len(test_names), failfast=options.failfast)
     test_suite.run(result)
     result.print_summary()
     printer.new_line()

@@ -5,6 +5,7 @@
 
 import unittest
 import time
+import sys
 
 class Case1(unittest.TestCase):
 
@@ -33,6 +34,21 @@ class Case1(unittest.TestCase):
 
     def test_error(self):
         raise RuntimeError("error raised for testing purpose")
+
+    def test_buffer_success(self):
+        sys.stdout.write("!!!!should not appear because success!!!!")
+        sys.stderr.write("!!!!should not appear because success!!!!")
+
+    def test_buffer_failure(self):
+        sys.stdout.write("!!!!failure stdout!!!!")
+        sys.stderr.write("!!!!failure stderr!!!!")
+        self.assertEqual(1, 2)
+
+    @unittest.expectedFailure
+    def test_buffer_unexpected_success(self):
+        sys.stdout.write("!!!!unexpected success stdout!!!!")
+        sys.stderr.write("!!!!unexpected success stderr!!!!")
+        self.assertEqual(1, 1, "not broken after all")
 
 class Case2(unittest.TestCase):
 

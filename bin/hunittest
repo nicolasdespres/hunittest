@@ -145,6 +145,10 @@ def build_cli():
         action="store_true",
         help="Stop on first failure")
     parser.add_argument(
+        "-q", "--quiet",
+        action="store_true",
+        help="Print nothing. Exit status is the outcome.")
+    parser.add_argument(
         "--version",
         action="store_true",
         help="Print version information and exit")
@@ -178,7 +182,7 @@ def main(argv):
     if not test_specs:
         test_specs = list(get_current_packages())
     isatty = False if options.verbose else None
-    printer = LinePrinter(isatty=isatty)
+    printer = LinePrinter(isatty=isatty, quiet=options.quiet)
     test_names = reported_collect(printer, test_specs, options.pattern,
                                   filter_rules)
     if options.collect_only:

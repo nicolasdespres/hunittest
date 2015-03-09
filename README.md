@@ -16,6 +16,8 @@ It does not add or change anything on the API side of the `unittest` module.
   [argcomplete](https://pypi.python.org/pypi/argcomplete)
 * Error are printed on the go (no need for `-c/--catch` equivalent).
 * `-f/--failfast` option like in `unittest`.
+* `-q/--quiet` option that truly prints nothing. Only the exit status
+  tells you whether the test suite was successful.
 * Filter rules system.
 
 # Installation

@@ -106,7 +106,7 @@ class LinePrinter(object):
             return os.isatty(fileno)
 
     def reset(self):
-        self.prev_line = None
+        self._prev_line = None
         self._last_is_nl = True
 
     def _write(self, string):
@@ -133,7 +133,7 @@ class LinePrinter(object):
 
     def overwrite(self, line):
         # Do nothing if the line has not changed.
-        if self.prev_line is not None and self.prev_line == line:
+        if self._prev_line is not None and self._prev_line == line:
             return
         written_line = line
         if self.isatty:
@@ -145,8 +145,8 @@ class LinePrinter(object):
         self.write(written_line)
         if not self.isatty:
             self.write("\n")
-        if self.isatty and self.prev_line is not None:
-            truncinfo = ansi_string_truncinfo(self.prev_line, termwidth)
+        if self.isatty and self._prev_line is not None:
+            truncinfo = ansi_string_truncinfo(self._prev_line, termwidth)
             _, prev_line_visual_len, _ = truncinfo
             if line_visual_len < prev_line_visual_len:
                 eraser = ""
@@ -154,9 +154,13 @@ class LinePrinter(object):
                     eraser += ANSI_RESET_ALL
                 eraser += " " * (prev_line_visual_len - line_visual_len)
                 self.write(eraser)
-        self.prev_line = line
+        self._prev_line = line
         self.output.flush()
 
     def overwrite_nl(self, line, auto=True):
         self.overwrite(line)
         self.new_line(auto=auto)
+
+    @property
+    def prev_line(self):
+        return self._prev_line

@@ -31,27 +31,11 @@
 import sys
 import argparse
 import os
-import pkgutil
-import re
-from importlib import import_module
 import unittest
 import operator
-from pprint import pprint
 import time
-from enum import Enum
-import fnmatch
-import functools
-import itertools
 from textwrap import dedent
 import subprocess
-
-# Add trip's package directory in the path.
-if os.environ.get("HUNITTEST_FROM_SOURCE", None):
-    bin_dir = os.path.dirname(os.path.realpath(__file__))
-    root_dir = os.path.join(bin_dir, "..")
-    root_dir = os.path.normpath(os.path.realpath(root_dir))
-    sys.path.insert(0, root_dir)
-    del bin_dir, root_dir
 
 from hunittest.line_printer import LinePrinter
 from hunittest.unittest_result import HTestResult
@@ -59,6 +43,8 @@ from hunittest.filter_rules import RuleOperator
 from hunittest.filter_rules import FilterAction
 from hunittest.filter_rules import PatternType
 from hunittest.filter_rules import FilterRules
+from hunittest.collectlib import collect_all
+from hunittest.completionlib import test_spec_completer
 
 try:
     import argcomplete
@@ -69,156 +55,6 @@ except ImportError:
 else:
     ARGCOMPLETE_ENABLED = True
 
-def pyname_join(seq):
-    return ".".join(seq)
-
-def is_test_case(obj):
-    return isinstance(obj, type) and issubclass(obj, unittest.TestCase)
-
-def collect_test_cases(module, filter_rules=None):
-    if filter_rules is None:
-        filter_rules = FilterRules()
-    return filter_rules(filter(is_test_case,
-                               map(lambda x: getattr(module, x),
-                                   dir(module))),
-                        key=functools.partial(build_test_name, module))
-
-def is_test_method(name):
-    return re.match(r"^test_", name)
-
-def collect_test_names(test_case, filter_rules=None):
-    if filter_rules is None:
-        filter_rules = FilterRules()
-    return filter_rules(map(functools.partial(getattr, test_case),
-                            filter(is_test_method, dir(test_case))),
-                        key=functools.partial(build_test_name,
-                                              test_case.__module__,
-                                              test_case))
-
-def build_test_name(test_module, test_case=None, test_method=None):
-    l = [test_module]
-    if test_case is not None:
-        l.append(test_case)
-    if test_method is not None:
-        l.append(test_method)
-    def transform(x):
-        if hasattr(x, "__name__"):
-            return x.__name__
-        else:
-            return x
-    return pyname_join(map(transform, l))
-
-def collect_all_test_modules(package, pattern):
-    directory = os.path.dirname(package.__file__)
-    assert directory.startswith(os.getcwd())
-    # We cannot use the finder to load the module because it mess up unittest.
-    # Using import_module() is fine.
-    for finder, name, ispkg in pkgutil.walk_packages(path=[directory]):
-        if ispkg:
-            fullname = pyname_join((package.__name__, name))
-            mod = import_module(fullname)
-            yield from collect_all_test_modules(mod, pattern)
-        else:
-            if re.match(pattern, name):
-                fullname = pyname_join((package.__name__, name))
-                mod = import_module(fullname)
-                yield mod
-
-class TestSpecType(Enum):
-    package = 1
-    module = 2
-    test_case = 3
-    test_method = 4
-
-def is_pkg(mod):
-    return os.path.basename(mod.__file__) == "__init__.py"
-
-class InvalidTestSpecError(Exception):
-
-    def __init__(self, test_spec, message):
-        self.test_spec = test_spec
-        self.message = message
-
-    def __str__(self):
-        return "invalid test spec '{}': {}".format(self.test_spec,
-                                                   self.message)
-
-def get_test_spec_type(test_spec):
-    if not test_spec:
-        raise ValueError("empty test spec")
-    if isinstance(test_spec, str):
-        spec = test_spec.split(".")
-    elif isinstance(test_spec, (list, tuple)):
-        spec = test_spec
-        test_spec = pyname_join(spec)
-    else:
-        raise TypeError("must be a str, list or tuple, not {!r}"
-                        .format(type(test_spec).__name__))
-    assert len(spec) > 0
-    mod = None
-    for i in range(len(spec)-1, -1, -1):
-        try:
-            mod = import_module(pyname_join(spec[:i+1]))
-        except ImportError:
-            pass
-        else:
-            break
-    if mod is None:
-        raise InvalidTestSpecError(test_spec, "failed to import anything")
-    if not os.path.dirname(mod.__file__).startswith(os.getcwd()):
-        raise InvalidTestSpecError(
-            test_spec,
-            "package or module '{}' refers outside of your current directory "
-            "you should set PYTHONPATH=.".format(mod.__name__))
-    mods = spec[:i+1]
-    attrs = spec[i+1:]
-    if not attrs:
-        if is_pkg(mod): # Package
-            return (TestSpecType.package, mod)
-        else: # module
-            return (TestSpecType.module, mod)
-    else:
-        obj = mod
-        for i in range(len(attrs)):
-            attr = attrs[i]
-            try:
-                obj = getattr(obj, attr)
-            except AttributeError:
-                raise InvalidTestSpecError(
-                    test_spec,
-                    "cannot get attribute '{}' from '{}'"
-                    .format(attr, pyname_join(mods+attrs[:i])))
-        if is_test_case(obj):
-            return (TestSpecType.test_case, obj)
-        else:
-            return (TestSpecType.test_method, obj)
-
-def collect_all_from_test_case(test_case):
-    for test_method in collect_test_names(test_case):
-        yield build_test_name(test_case.__module__, test_case, test_method)
-
-def collect_all_from_module(test_module):
-    for test_case in collect_test_cases(test_module):
-        yield from collect_all_from_test_case(test_case)
-
-def collect_all_from_package(package, pattern):
-    for test_module in collect_all_test_modules(package, pattern):
-        yield from collect_all_from_module(test_module)
-
-def collect_all(test_specs, pattern):
-    for test_spec in test_specs:
-        tst, value = get_test_spec_type(test_spec)
-        if tst is TestSpecType.package:
-            yield from collect_all_from_package(value, pattern)
-        elif tst is TestSpecType.module:
-            yield from collect_all_from_module(value)
-        elif tst is TestSpecType.test_case:
-            yield from collect_all_from_test_case(value)
-        elif tst is TestSpecType.test_method:
-            yield pyname_join((value.__module__, value.__qualname__))
-        else:
-            raise RuntimeError("unsupported test spec type: {}"
-                               .format(tst))
 
 def reported_collect(printer, test_specs, pattern, filter_rules):
     collection = collect_all(test_specs, pattern)
@@ -232,108 +68,6 @@ def reported_collect(printer, test_specs, pattern, filter_rules):
     else:
         printer.overwrite("collected {:d} test(s)".format(len(test_names)))
     return test_names
-
-def is_pkgdir(dirpath):
-    return os.path.isdir(dirpath) \
-        and os.path.isfile(os.path.join(dirpath, "__init__.py"))
-
-def get_current_packages():
-    for name in os.listdir("."):
-        if is_pkgdir(name):
-            yield name
-
-def collect_from_test_suite(test_suite):
-    """Generate all test full names in *test_suite* recursively.
-    """
-    def rec(test_suite):
-        for t in test_suite:
-            if isinstance(t, unittest.TestSuite):
-                yield from rec(t._tests)
-            elif isinstance(t, unittest.TestCase):
-                yield pyname_join((t.__module__,
-                                   t.__class__.__name__,
-                                   t._testMethodName))
-            else:
-                raise RuntimeError("do not know what to do with {!r}".format(t))
-    if not isinstance(test_suite, unittest.TestSuite):
-        raise TypeError("must be a unittest.TestSuite, not {}"
-                        .format(type(test_suite).__name__))
-    yield from rec(test_suite)
-
-def mod_split(modname):
-    mo = re.match(r"^(.+)\.(.*)$", modname)
-    if not mo:
-        raise ValueError("invalid python path identifier")
-    return (mo.group(1), mo.group(2))
-
-def argcomplete_directories(prefix):
-    for directory in get_current_packages():
-        if directory.startswith(prefix):
-            yield directory
-
-def argcomplete_modules(package, pattern, prefix):
-    directory = os.path.dirname(package.__file__)
-    for _, name, ispkg in pkgutil.iter_modules(path=[directory]):
-        if not name.startswith(prefix):
-            continue
-        if ispkg or re.match(pattern, name):
-            fullname = pyname_join((package.__name__, name))
-            yield fullname
-
-def argcomplete_test_cases(module, prefix):
-    for test_case in collect_test_cases(module):
-        name = test_case.__name__
-        if name.startswith(prefix):
-            yield pyname_join((module.__name__, name))
-
-def argcomplete_test_methods(test_case, prefix):
-    for test_method in collect_test_names(test_case):
-        name = test_method.__name__
-        if name.startswith(prefix):
-            yield pyname_join((test_case.__module__,
-                               test_case.__name__,
-                               name))
-
-def is_empty_generator(generator):
-    try:
-        next(generator)
-    except StopIteration:
-        return True
-    else:
-        return False
-
-def gen_test_spec_completion(prefix, parsed_args):
-    spec = prefix.split(".")
-    assert len(spec) > 0
-    if len(spec) == 1:
-        yield from argcomplete_directories(spec[0])
-    else:
-        test_spec = spec[:-1]
-        rest = spec[-1]
-        tst, obj = get_test_spec_type(test_spec)
-        if tst is TestSpecType.package:
-            yield from argcomplete_modules(obj, parsed_args.pattern, rest)
-        elif tst is TestSpecType.module:
-            yield from argcomplete_test_cases(obj, rest)
-        elif tst is TestSpecType.test_case:
-            yield from argcomplete_test_methods(obj, rest)
-        elif tst is TestSpecType.test_method:
-            pass # nothing to complete
-        else:
-            raise RuntimeError("unsupported test spec type: {}"
-                               .format(tst))
-
-def with_next_completion(completion, parsed_args):
-    yield completion
-    next_completion = completion + "."
-    next_completions = gen_test_spec_completion(next_completion, parsed_args)
-    if not is_empty_generator(next_completions):
-        yield next_completion
-
-def test_spec_completer(prefix, parsed_args, **kwargs):
-    completions = gen_test_spec_completion(prefix, parsed_args)
-    for n, completion in enumerate(completions):
-        yield from with_next_completion(completion, parsed_args)
 
 def complete_arg(arg, completer):
     if ARGCOMPLETE_ENABLED:

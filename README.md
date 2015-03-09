@@ -25,18 +25,14 @@ It requires Python 3.4.x at the moment. And you can install `colorama` and
 ## From source
 
 ```sh
-cd
-git clone <FIXME:hunittesturl>
-cd hunittest
-mkdir ~/bin
-ln -s ~/hunittest/bin/hunittest ~/bin/hunittest
+git clone <FIXME:hunittesturl> <path/to/hunittest/repo>
 ```
 
 Add this lines to your `~/.bash_profile` or `~/.zshenv` file:
 
 ```sh
-export PATH="$HOME/bin:$PATH"
-export TRIP_FROM_SOURCE=x
+export PATH="<path/to/hunittest/repo>/bin:$PATH"
+export PYTHONPATH="<path/to/hunittest/repo>:$PYTHONPATH"
 ```
 
 ## shell completion

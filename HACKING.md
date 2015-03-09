@@ -3,6 +3,20 @@
 Detail basic command to know when developing trip.
 All commands must be executed from the root of the repository.
 
+## Test suite
+
+To run `hunittest` own automatic test suite:
+
+```sh
+PYTHONPATH=. python3 -m unittest discover test
+```
+
+## To test the CLI
+
+```sh
+PYTHONPATH=. ./bin/hunittest test_samples
+```
+
 ## Debugging completion
 
 ```sh

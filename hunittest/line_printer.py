@@ -6,9 +6,17 @@
 import sys
 import os
 import re
+import fcntl
+import termios
+import struct
 
 
 ANSI_ESCAPE_PATTERN = r'\x1b.*?m'
+
+try:
+    from colorama.Style import RESET_ALL as ANSI_RESET_ALL
+except ImportError:
+    ANSI_RESET_ALL = '\x1b[0m'
 
 def strip_ansi_escape(string):
     return re.subn(ANSI_ESCAPE_PATTERN, "", string)[0]
@@ -41,6 +49,30 @@ def truncate_ansi_string(string, size):
     string_pos, visual_pos, isansi = ansi_string_truncinfo(string, size)
     return string[:string_pos]
 
+def get_terminal_size(default_lines=25, default_columns=80):
+    env = os.environ
+    def ioctl_GWINSZ(fd):
+        try:
+            cr = struct.unpack('hh',
+                               fcntl.ioctl(fd, termios.TIOCGWINSZ, '1234'))
+        except:
+            return
+        return cr
+    cr = ioctl_GWINSZ(0) or ioctl_GWINSZ(1) or ioctl_GWINSZ(2)
+    if not cr:
+        try:
+            fd = os.open(os.ctermid(), os.O_RDONLY)
+            try:
+                cr = ioctl_GWINSZ(fd)
+            finally:
+                os.close(fd)
+        except:
+            pass
+    if not cr:
+        cr = (env.get('LINES', default_lines),
+              env.get('COLUMNS', default_columns))
+    return (int(cr[1]), int(cr[0]))
+
 class LinePrinter(object):
     """Robust line overwriting in terminal.
 
@@ -57,10 +89,11 @@ class LinePrinter(object):
     since it may cause confusion. Instead you should use the provided methods.
     """
 
-    def __init__(self, output=sys.stdout, isatty=None, quiet=False):
+    def __init__(self, output=sys.stdout, isatty=None, quiet=False,
+                 default_termwidth=80):
         self.output = output
         self.isatty = self._isatty_output() if isatty is None else isatty
-        self._termsize = get_terminal_size() if self.isatty else None
+        self.default_termwidth = default_termwidth
         self.quiet = quiet
         self.reset()
 
@@ -94,26 +127,33 @@ class LinePrinter(object):
             self.write("\n")
         self.reset()
 
-    def _truncate_line(self, line):
-        if self._termsize is None:
-            return line
-        tw = self._termsize[0]
-        return truncate_line(line, tw)
+    def _get_termwidth(self):
+        assert self.isatty
+        return get_terminal_size(default_columns=self.default_termwidth)[0]
 
     def overwrite(self, line):
         # Do nothing if the line has not changed.
         if self.prev_line is not None and self.prev_line == line:
             return
+        written_line = line
         if self.isatty:
             self.write("\r")
-        self.write(line)
+            termwidth = self._get_termwidth()
+            truncinfo = ansi_string_truncinfo(line, termwidth)
+            trunc_pos, line_visual_len, line_has_ansi = truncinfo
+            written_line = line[:trunc_pos]
+        self.write(written_line)
         if not self.isatty:
             self.write("\n")
         if self.isatty and self.prev_line is not None:
-            len_line = len(strip_ansi_escape(line))
-            len_prev_line = len(strip_ansi_escape(self.prev_line))
-            if len_line < len_prev_line:
-                self.write(" " * (len_prev_line - len_line))
+            truncinfo = ansi_string_truncinfo(self.prev_line, termwidth)
+            _, prev_line_visual_len, _ = truncinfo
+            if line_visual_len < prev_line_visual_len:
+                eraser = ""
+                if line_has_ansi:
+                    eraser += ANSI_RESET_ALL
+                eraser += " " * (prev_line_visual_len - line_visual_len)
+                self.write(eraser)
         self.prev_line = line
         self.output.flush()
 

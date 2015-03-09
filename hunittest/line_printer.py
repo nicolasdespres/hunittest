@@ -94,7 +94,7 @@ class LinePrinter(object):
         self._output = output
         self._isatty = self._isatty_output() if isatty is None else isatty
         self.default_termwidth = default_termwidth
-        self.quiet = quiet
+        self._quiet = quiet
         self.reset()
 
     def _isatty_output(self):
@@ -114,7 +114,7 @@ class LinePrinter(object):
         self._output.write(string)
 
     def write(self, string):
-        if self.quiet:
+        if self._quiet:
             return
         self._write(string)
 
@@ -172,3 +172,7 @@ class LinePrinter(object):
     @property
     def isatty(self):
         return self._isatty
+
+    @property
+    def quiet(self):
+        return self._quiet

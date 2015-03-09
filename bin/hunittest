@@ -50,8 +50,7 @@ from textwrap import dedent
 import subprocess
 
 # Add trip's package directory in the path.
-if os.environ.get("HUNITTEST_FROM_SOURCE", None) \
-   and "/" not in sys.argv[0]:
+if os.environ.get("HUNITTEST_FROM_SOURCE", None):
     bin_dir = os.path.dirname(os.path.realpath(__file__))
     root_dir = os.path.join(bin_dir, "..")
     root_dir = os.path.normpath(os.path.realpath(root_dir))

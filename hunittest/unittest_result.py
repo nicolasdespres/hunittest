@@ -64,7 +64,7 @@ class StopWatch(object):
     def total_time(self):
         return timedelta(microseconds=self._total_time)
 
-class SmartTestResult(unittest.TestResult):
+class HTestResult(unittest.TestResult):
 
     SUCCESS_COLOR = Fore.GREEN
     FAILURE_COLOR = Fore.RED
@@ -81,7 +81,7 @@ class SmartTestResult(unittest.TestResult):
         return "_{}_count".format(status)
 
     def __init__(self, printer, total_tests):
-        super(SmartTestResult, self).__init__()
+        super(HTestResult, self).__init__()
         self._printer = printer
         self._total_tests = total_tests
         for status in self.ALL_STATUS:
@@ -207,47 +207,47 @@ class SmartTestResult(unittest.TestResult):
         self._printer.overwrite_nl(msg)
 
     def startTest(self, test):
-        super(SmartTestResult, self).startTest(test)
+        super(HTestResult, self).startTest(test)
         # print("startTest", repr(test), test.__class__, test._testMethodName)
         self._stopwatch.start()
 
     def stopTest(self, test):
-        super(SmartTestResult, self).stopTest(test)
+        super(HTestResult, self).stopTest(test)
         # print("stopTest", repr(test))
 
     def startTestRun(self):
-        super(SmartTestResult, self).startTestRun()
+        super(HTestResult, self).startTestRun()
         # print("startTestRun")
 
     def stopTestRun(self):
-        super(SmartTestResult, self).stopTestRun()
+        super(HTestResult, self).stopTestRun()
         # print("stopTesRun")
 
     def addSuccess(self, test):
-        super(SmartTestResult, self).addSuccess(test)
+        super(HTestResult, self).addSuccess(test)
         # print("addSuccess", repr(test))
         self._print_message(test, "success")
 
     def addFailure(self, test, err):
-        super(SmartTestResult, self).addFailure(test, err)
+        super(HTestResult, self).addFailure(test, err)
         # print("addFailure", repr(test), repr(err))
         self._print_message(test, "failure", err=err)
 
     def addError(self, test, err):
-        super(SmartTestResult, self).addError(test, err)
+        super(HTestResult, self).addError(test, err)
         # print("addError", repr(test), repr(err))
         self._print_message(test, "error", err=err)
 
     def addSkip(self, test, reason):
-        super(SmartTestResult, self).addSkip(test, reason)
+        super(HTestResult, self).addSkip(test, reason)
         self._print_message(test, "skip", reason=reason)
 
     def addExpectedFailure(self, test, err):
-        super(SmartTestResult, self).addExpectedFailure(test, err)
+        super(HTestResult, self).addExpectedFailure(test, err)
         self._print_message(test, "expected_failure")
 
     def addUnexpectedSuccess(self, test):
-        super(SmartTestResult, self).addUnexpectedSuccess(test)
+        super(HTestResult, self).addUnexpectedSuccess(test)
         self._print_message(test, "unexpected_success")
 
     def _format_run_status(self):

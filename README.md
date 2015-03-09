@@ -12,8 +12,7 @@ It to unittest what htop is to top.
 * Fancy color if you install [colorama](https://pypi.python.org/pypi/colorama)
 * Convenient shell completion if you install
   [argcomplete](https://pypi.python.org/pypi/argcomplete)
-* Error are printed as soon as they happen, not at the end of the entire
-  test suite.
+* Error are printed on the go (no need for `-c/--catch` equivalent).
 * Filter rules system.
 * Just one single python script.
 

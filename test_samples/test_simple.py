@@ -31,6 +31,9 @@ class Case1(unittest.TestCase):
         time.sleep(0.1)
         self.assertEqual(1, 1, "not broken after all")
 
+    def test_error(self):
+        raise RuntimeError("error raised for testing purpose")
+
 class Case2(unittest.TestCase):
 
     def test_success(self):

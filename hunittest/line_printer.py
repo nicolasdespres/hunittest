@@ -8,8 +8,38 @@ import os
 import re
 
 
+ANSI_ESCAPE_PATTERN = r'\x1b.*?m'
+
 def strip_ansi_escape(string):
-    return re.subn(r'\x1b.*?m', "", string)[0]
+    return re.subn(ANSI_ESCAPE_PATTERN, "", string)[0]
+
+def ansi_string_truncinfo(string, size):
+    if size < 0:
+        raise ValueError("size must be positive")
+    if string is None:
+        raise ValueError("expected a string, not {!r}"
+                         .format(type(string).__name__))
+    cl = 0 # cumulative number of character visited so far
+    al = 0 # cumulative number of ansi escape character visited so far
+    last_end = 0
+    has_ansi = False
+    for mo in re.finditer(ANSI_ESCAPE_PATTERN, string):
+        # print("MO", repr(mo), len(mo.group(0).encode()))
+        cl += mo.start() - last_end
+        if cl >= size:
+            break
+        al += mo.end() - mo.start()
+        last_end = mo.end()
+        has_ansi = True
+        # print("cl", cl, "al", al)
+    cl += len(string) - last_end
+    # print("last cl", cl)
+    length = min(size, cl)
+    return (al+length, length, has_ansi)
+
+def truncate_ansi_string(string, size):
+    string_pos, visual_pos, isansi = ansi_string_truncinfo(string, size)
+    return string[:string_pos]
 
 class LinePrinter(object):
     """Robust line overwriting in terminal.
@@ -30,6 +60,7 @@ class LinePrinter(object):
     def __init__(self, output=sys.stdout, isatty=None, quiet=False):
         self.output = output
         self.isatty = self._isatty_output() if isatty is None else isatty
+        self._termsize = get_terminal_size() if self.isatty else None
         self.quiet = quiet
         self.reset()
 
@@ -62,6 +93,12 @@ class LinePrinter(object):
         if not auto or not self._last_is_nl:
             self.write("\n")
         self.reset()
+
+    def _truncate_line(self, line):
+        if self._termsize is None:
+            return line
+        tw = self._termsize[0]
+        return truncate_line(line, tw)
 
     def overwrite(self, line):
         # Do nothing if the line has not changed.

@@ -1,20 +1,22 @@
 # Welcome to hunittest
 
 Hunittest is user friendly command line interface for unittest.
-It to unittest what htop is to top.
+It is to unittest what htop is to top. Just a nicer command line interface.
+It does not add or change anything on the API side of the `unittest` module.
 
 # Features
 
 * Work with any unittest test suite
 * One line progress status output (inspired by
-  [ninja](https://github.com/martine/ninja))
-* No dependency: you can just copy it as is in your project.
+  [ninja](https://github.com/martine/ninja)). Thus, buffering of stdout/stderr
+  is always on (no `-b/--buffer` option like in default `unittest` driver).
+* No mandatory dependencies.
 * Fancy color if you install [colorama](https://pypi.python.org/pypi/colorama)
 * Convenient shell completion if you install
   [argcomplete](https://pypi.python.org/pypi/argcomplete)
 * Error are printed on the go (no need for `-c/--catch` equivalent).
+* `-f/--failfast` option like in `unittest`.
 * Filter rules system.
-* Just one single python script.
 
 # Installation
 

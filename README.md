@@ -48,6 +48,10 @@ Here is just what I did for *zsh*:
 
 * Does not work with nested TestCase.
 
+# Hacking
+
+See HACKING.md for details.
+
 # License
 
 _hunittest_ is released under the term of the [Simplified BSD License](http://choosealicense.com/licenses/bsd-2-clause).

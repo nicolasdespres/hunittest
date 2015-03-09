@@ -243,11 +243,11 @@ class SmartTestResult(unittest.TestResult):
         self._print_message(test, "skip", reason=reason)
 
     def addExpectedFailure(self, test, err):
-        super(SmartTestResult, self).addExpectedFailure(test, reason)
+        super(SmartTestResult, self).addExpectedFailure(test, err)
         self._print_message(test, "expected_failure")
 
     def addUnexpectedSuccess(self, test):
-        super(SmartTestResult, self).addUnexpectedFailure(test)
+        super(SmartTestResult, self).addUnexpectedSuccess(test)
         self._print_message(test, "unexpected_success")
 
     def _format_run_status(self):

@@ -21,6 +21,16 @@ class Case1(unittest.TestCase):
         time.sleep(0.1)
         self.assertFalse(True)
 
+    @unittest.expectedFailure
+    def test_expected_failure(self):
+        time.sleep(0.1)
+        self.assertEqual(1, 0, "broken")
+
+    @unittest.expectedFailure
+    def test_unexpected_success(self):
+        time.sleep(0.1)
+        self.assertEqual(1, 1, "not broken after all")
+
 class Case2(unittest.TestCase):
 
     def test_success(self):

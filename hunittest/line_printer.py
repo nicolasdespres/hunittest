@@ -91,7 +91,7 @@ class LinePrinter(object):
 
     def __init__(self, output=sys.stdout, isatty=None, quiet=False,
                  default_termwidth=80):
-        self.output = output
+        self._output = output
         self.isatty = self._isatty_output() if isatty is None else isatty
         self.default_termwidth = default_termwidth
         self.quiet = quiet
@@ -99,7 +99,7 @@ class LinePrinter(object):
 
     def _isatty_output(self):
         try:
-            fileno = self.output.fileno()
+            fileno = self._output.fileno()
         except:
             return False
         else:
@@ -111,7 +111,7 @@ class LinePrinter(object):
 
     def _write(self, string):
         self._last_is_nl = string.endswith("\n")
-        self.output.write(string)
+        self._output.write(string)
 
     def write(self, string):
         if self.quiet:
@@ -155,7 +155,7 @@ class LinePrinter(object):
                 eraser += " " * (prev_line_visual_len - line_visual_len)
                 self.write(eraser)
         self._prev_line = line
-        self.output.flush()
+        self._output.flush()
 
     def overwrite_nl(self, line, auto=True):
         self.overwrite(line)
@@ -164,3 +164,7 @@ class LinePrinter(object):
     @property
     def prev_line(self):
         return self._prev_line
+
+    @property
+    def output(self):
+        return self._output

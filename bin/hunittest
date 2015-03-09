@@ -141,6 +141,10 @@ def build_cli():
         action="store_true",
         help="Only collect test (do not run anything).")
     parser.add_argument(
+        "-f", "--failfast",
+        action="store_true",
+        help="Stop on first failure")
+    parser.add_argument(
         "--version",
         action="store_true",
         help="Print version information and exit")
@@ -182,6 +186,7 @@ def main(argv):
         return 0
     test_suite = unittest.defaultTestLoader.loadTestsFromNames(test_names)
     result = HTestResult(printer, len(test_names))
+    result.failfast = options.failfast
     test_suite.run(result)
     result.print_summary()
     printer.new_line()

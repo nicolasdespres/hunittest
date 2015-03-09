@@ -22,10 +22,22 @@ It to unittest what htop is to top.
 It requires Python 3.4.x at the moment. And you can install `colorama` and
 `argcomplete` (using `pip3`) if you really want to enjoy it all.
 
-Then you can either:
-* clone the repository and create a link to one of your directory in
-  PATH.
-* copy the file directly into your project
+## From source
+
+```sh
+cd
+git clone <FIXME:hunittesturl>
+cd hunittest
+mkdir ~/bin
+ln -s ~/hunittest/bin/hunittest ~/bin/hunittest
+```
+
+Add this lines to your `~/.bash_profile` or `~/.zshenv` file:
+
+```sh
+export PATH="$HOME/bin:$PATH"
+export TRIP_FROM_SOURCE=x
+```
 
 ## shell completion
 

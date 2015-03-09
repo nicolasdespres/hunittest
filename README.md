@@ -44,6 +44,10 @@ Here is just what I did for *zsh*:
   ```
 * Re-launch your shell: `exec zsh`
 
+# Known bugs
+
+* Does not work with nested TestCase.
+
 # License
 
 _hunittest_ is released under the term of the [Simplified BSD License](http://choosealicense.com/licenses/bsd-2-clause).

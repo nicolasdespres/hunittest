@@ -371,3 +371,13 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual(expected, actual)
         self.assertEqual((len(expected), 6, True),
                          ansi_string_truncinfo(fixture, size))
+
+    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
+    def test_use_case(self):
+        fixture = "[ 50%|253.71|"+Fore.GREEN+"2"+Fore.RESET+"|"+Fore.RED+"0"+Fore.RESET+"|"+Fore.MAGENTA+"0"+Fore.RESET+"|"+Fore.BLUE+"0"+Fore.RESET+"|"+Fore.YELLOW+"0"+Fore.RESET+"|"+Fore.CYAN+"0"+Fore.RESET+"]"+Fore.GREEN+" SUCCESS "+Fore.RESET+": testtest.test_allgood.Case1.test_success2 (0:00:00.252080)"
+        size = 50
+        expected = "[ 50%|253.71|"+Fore.GREEN+"2"+Fore.RESET+"|"+Fore.RED+"0"+Fore.RESET+"|"+Fore.MAGENTA+"0"+Fore.RESET+"|"+Fore.BLUE+"0"+Fore.RESET+"|"+Fore.YELLOW+"0"+Fore.RESET+"|"+Fore.CYAN+"0"+Fore.RESET+"]"+Fore.GREEN+" SUCCESS "+Fore.RESET+": testtest.test_"
+        actual = truncate_ansi_string(fixture, size)
+        self.assertEqual(expected, actual)
+        self.assertEqual((len(expected), size, True),
+                         ansi_string_truncinfo(fixture, size))

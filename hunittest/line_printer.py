@@ -92,7 +92,7 @@ class LinePrinter(object):
     def __init__(self, output=sys.stdout, isatty=None, quiet=False,
                  default_termwidth=80):
         self._output = output
-        self.isatty = self._isatty_output() if isatty is None else isatty
+        self._isatty = self._isatty_output() if isatty is None else isatty
         self.default_termwidth = default_termwidth
         self.quiet = quiet
         self.reset()
@@ -128,7 +128,7 @@ class LinePrinter(object):
         self.reset()
 
     def _get_termwidth(self):
-        assert self.isatty
+        assert self._isatty
         return get_terminal_size(default_columns=self.default_termwidth)[0]
 
     def overwrite(self, line):
@@ -136,16 +136,16 @@ class LinePrinter(object):
         if self._prev_line is not None and self._prev_line == line:
             return
         written_line = line
-        if self.isatty:
+        if self._isatty:
             self.write("\r")
             termwidth = self._get_termwidth()
             truncinfo = ansi_string_truncinfo(line, termwidth)
             trunc_pos, line_visual_len, line_has_ansi = truncinfo
             written_line = line[:trunc_pos]
         self.write(written_line)
-        if not self.isatty:
+        if not self._isatty:
             self.write("\n")
-        if self.isatty and self._prev_line is not None:
+        if self._isatty and self._prev_line is not None:
             truncinfo = ansi_string_truncinfo(self._prev_line, termwidth)
             _, prev_line_visual_len, _ = truncinfo
             if line_visual_len < prev_line_visual_len:
@@ -168,3 +168,7 @@ class LinePrinter(object):
     @property
     def output(self):
         return self._output
+
+    @property
+    def isatty(self):
+        return self._isatty

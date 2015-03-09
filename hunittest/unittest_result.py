@@ -35,36 +35,73 @@ class StopWatch(object):
 
     def reset(self):
         self._started_at = None
-        self._last_laps_time = None
-        self._last_laps_at = None
-        self._total_time = 0
+        self._last_split_time = None
+        self._last_split_at = None
+        self._total_split_time = None
         self._tick_count = 0
 
     @property
     def started_at(self):
         return self._started_at
 
+    @property
+    def last_split_at(self):
+        return self._last_split_at
+
     def start(self):
+        if self.is_started:
+            raise RuntimeError("stopwatch already started")
         self._started_at = datetime.utcnow()
-
-    def tick(self):
-        self._last_laps_at = datetime.utcnow()
-        self._last_laps_time = self._last_laps_at - self._started_at
-        self._total_time += self._last_laps_time.microseconds
-        self._tick_count += 1
+        self._last_split_at = self._started_at
+        self._last_split_time = None
+        self._total_split_time = None
+        self._splits_count = 0
 
     @property
-    def mean_laps_time(self):
-        """Return mean laps time in microseconds."""
-        return self._total_time / self._tick_count
+    def is_started(self):
+        return self._started_at is not None
+
+    def _check_is_started(self):
+        if not self.is_started:
+            raise RuntimeError("stopwatch not started")
+
+    def split(self):
+        self._check_is_started()
+        now = datetime.utcnow()
+        self._last_split_time = now - self._last_split_at
+        self._last_split_at = now
+        self._splits_count += 1
+        if self._total_split_time is None:
+            self._total_split_time = self._last_split_time
+        else:
+            self._total_split_time += self._last_split_time
 
     @property
-    def last_laps_time(self):
-        return self._last_laps_time
+    def splits_count(self):
+        return self._splits_count
+
+    @property
+    def total_split_time(self):
+        return self._total_split_time
+
+    @property
+    def mean_split_time(self):
+        """Return mean split time in microseconds."""
+        self._check_is_started()
+        return self._total_split_time / self._splits_count
+
+    @property
+    def mean_split_time_in_ms(self):
+        return self.mean_split_time /  timedelta(microseconds=1e3)
+
+    @property
+    def last_split_time(self):
+        return self._last_split_time
 
     @property
     def total_time(self):
-        return timedelta(microseconds=self._total_time)
+        self._check_is_started()
+        return datetime.utcnow() - self._started_at
 
 def failfast_decorator(method):
     @functools.wraps(method)
@@ -195,7 +232,7 @@ class HTestResult(object):
             + Fore.RESET
 
     def _print_message(self, test, test_status, err=None, reason=None):
-        self._stopwatch.tick()
+        self._stopwatch.split()
         counters = {}
         counter_formats = []
         for status in self.ALL_STATUS:
@@ -203,15 +240,15 @@ class HTestResult(object):
                                + str(self.get_status_counter(status)) \
                                + Fore.RESET
             counter_formats.append("{{{s}}}".format(s=status))
-        formatter = "[{progress:>4.0%}|{mean_time:.2f}|" \
+        formatter = "[{progress:>4.0%}|{mean_split_time:.2f}ms|" \
                     + "|".join(f for f in counter_formats) \
                     + "] {test_status}: {fullname} ({elapsed})"
         msg = formatter.format(
             progress=self.progress,
             fullname=self.full_test_name(test),
             test_status=self.format_test_status(test_status),
-            elapsed=self._stopwatch.last_laps_time,
-            mean_time=self._stopwatch.mean_laps_time / 1000,
+            elapsed=self._stopwatch.last_split_time,
+            mean_split_time=self._stopwatch.mean_split_time_in_ms,
             **counters)
         self._inc_status_counter(test_status)
         self._printer.overwrite(msg)
@@ -265,7 +302,8 @@ class HTestResult(object):
 
     def startTest(self, test):
         self._tests_run += 1
-        self._stopwatch.start()
+        if not self._stopwatch.is_started:
+            self._stopwatch.start()
         self._setupStdout()
 
     def _setupStdout(self):
@@ -338,12 +376,13 @@ class HTestResult(object):
             counter_formats.append("{{{s}}} {s}".format(s=status))
 
         formatter = "{run_status} {total_count} tests in "\
-                    "{elapsed_time}: "
+                    "{total_time} (avg: {mean_split_time}): "
         formatter += " ".join(counter_formats)
         msg = formatter.format(
             run_status=self._format_run_status(),
             total_count=self._total_tests,
-            elapsed_time=self._stopwatch.total_time,
+            total_time=self._stopwatch.total_split_time,
+            mean_split_time=self._stopwatch.mean_split_time,
             **counters)
         self._printer.overwrite(msg)
 

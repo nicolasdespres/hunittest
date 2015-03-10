@@ -35,7 +35,19 @@ Add this lines to your `~/.bash_profile` or `~/.zshenv` file:
 
 ```sh
 export PATH="<path/to/hunittest/repo>/bin:$PATH"
-export PYTHONPATH="<path/to/hunittest/repo>:$PYTHONPATH"
+export HUNITTEST_AUTO_PYTHONPATH=true
+```
+
+With this installation you won't be able to use hunittest like this:
+
+```sh
+python3 -m hunittest.cli ...
+```
+
+But you can do:
+
+```sh
+hunittest ...
 ```
 
 ## shell completion

@@ -8,7 +8,13 @@ All commands must be executed from the root of the repository.
 To run `hunittest` own automatic test suite:
 
 ```sh
-PYTHONPATH=. python3 -m unittest discover test
+python3 -m unittest discover hunittest.test
+```
+
+or
+
+```sh
+python3 -m hunittest.cli hunittest.test
 ```
 
 ## To test the CLI

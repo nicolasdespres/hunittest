@@ -15,11 +15,13 @@ from hunittest.collectlib import get_test_spec_type
 from hunittest.collectlib import TestSpecType
 from hunittest.collectlib import collect_test_cases
 from hunittest.collectlib import collect_test_names
+from hunittest.collectlib import setup_top_level_directory
 
 
-def get_current_packages():
-    for name in os.listdir("."):
-        if is_pkgdir(name):
+def list_packages_from(dirpath):
+    """Yields all packages directly available from *dirpath*."""
+    for name in os.listdir(dirpath):
+        if is_pkgdir(os.path.join(dirpath, name)):
             yield name
 
 def collect_from_test_suite(test_suite):
@@ -40,8 +42,8 @@ def collect_from_test_suite(test_suite):
                         .format(type(test_suite).__name__))
     yield from rec(test_suite)
 
-def argcomplete_directories(prefix):
-    for directory in get_current_packages():
+def argcomplete_directories(prefix, top_level_directory):
+    for directory in list_packages_from(top_level_directory):
         if directory.startswith(prefix):
             yield directory
 
@@ -71,7 +73,8 @@ def gen_test_spec_completion(prefix, parsed_args):
     spec = prefix.split(".")
     assert len(spec) > 0
     if len(spec) == 1:
-        yield from argcomplete_directories(spec[0])
+        yield from argcomplete_directories(spec[0],
+                                           parsed_args.top_level_directory)
     else:
         test_spec = spec[:-1]
         rest = spec[-1]
@@ -96,6 +99,7 @@ def with_next_completion(completion, parsed_args):
         yield next_completion
 
 def test_spec_completer(prefix, parsed_args, **kwargs):
+    setup_top_level_directory(parsed_args.top_level_directory)
     completions = gen_test_spec_completion(prefix, parsed_args)
     for n, completion in enumerate(completions):
         yield from with_next_completion(completion, parsed_args)

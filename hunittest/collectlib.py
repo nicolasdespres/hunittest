@@ -10,6 +10,7 @@ import pkgutil
 import re
 import unittest
 import functools
+import sys
 
 from hunittest.utils import pyname_join
 
@@ -102,8 +103,12 @@ def get_test_spec_type(test_spec):
     if not os.path.realpath(os.path.dirname(mod.__file__)).startswith(os.path.realpath(os.getcwd())):
         raise InvalidTestSpecError(
             test_spec,
-            "package or module '{}' refers outside of your current directory "
-            "you should set PYTHONPATH=.".format(mod.__name__))
+            "package or module '{modname}' (from {modpath}), "
+            "refers outside of your current directory "
+            "you should set PYTHONPATH=."
+            .format(modname=mod.__name__,
+                    modpath=mod.__file__,
+                ))
     mods = spec[:i+1]
     attrs = spec[i+1:]
     if not attrs:
@@ -153,3 +158,11 @@ def collect_all(test_specs, pattern):
         else:
             raise RuntimeError("unsupported test spec type: {}"
                                .format(tst))
+
+def setup_top_level_directory(top_level_directory=None):
+    if not top_level_directory:
+        top_level_directory = os.getcwd()
+    if not os.path.isabs(top_level_directory):
+        raise ValueError("top level directory must be an absolute path: '{}'"
+                         .format(top_level_directory))
+    sys.path.insert(0, top_level_directory)

@@ -18,6 +18,7 @@ It does not add or change anything on the API side of the `unittest` module.
 * `-f/--failfast` option like in `unittest`.
 * `-q/--quiet` option that truly prints nothing. Only the exit status
   tells you whether the test suite was successful.
+* `-t/--top-level-directory` option just like `unittest`.
 * Filter rules system.
 
 # Installation

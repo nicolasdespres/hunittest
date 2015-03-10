@@ -136,12 +136,6 @@ def build_cli():
     return parser
 
 def main(argv):
-    # Force all module we are going to load to comes from the current
-    # working directory. Otherwise, since a package call "test" may appears
-    # multiple times in the PYTHONPATH we will got the wrong one.
-    cwd = os.getcwd()
-    if cwd not in sys.path:
-        sys.path.insert(0, cwd)
     cli = build_cli()
     if ARGCOMPLETE_ENABLED:
         argcomplete.autocomplete(cli)

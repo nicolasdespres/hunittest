@@ -102,8 +102,12 @@ def get_test_spec_type(test_spec):
     if not os.path.realpath(os.path.dirname(mod.__file__)).startswith(os.path.realpath(os.getcwd())):
         raise InvalidTestSpecError(
             test_spec,
-            "package or module '{}' refers outside of your current directory "
-            "you should set PYTHONPATH=.".format(mod.__name__))
+            "package or module '{modname}' (from {modpath}), "
+            "refers outside of your current directory "
+            "you should set PYTHONPATH=."
+            .format(modname=mod.__name__,
+                    modpath=mod.__file__,
+                ))
     mods = spec[:i+1]
     attrs = spec[i+1:]
     if not attrs:

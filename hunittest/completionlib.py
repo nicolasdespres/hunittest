@@ -18,7 +18,7 @@ from hunittest.collectlib import collect_test_names
 
 
 def get_current_packages():
-    for name in os.listdir("."):
+    for name in os.listdir(os.getcwd()):
         if is_pkgdir(name):
             yield name
 

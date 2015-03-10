@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-"""Routines to report unittest result.
+"""Routines and classes to report unittest result.
 """
 
 

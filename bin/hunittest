@@ -29,6 +29,19 @@
 """
 
 import sys
+import os
+
+# Automatically prepend hunittest's repository's root directory to PYTHONPATH.
+# It eases installation without pip. Users can just clone the repository
+# and create a symlink into one of their directory in their PATH pointing
+# to bin/hunittest driver. To do that they just have to set
+# HUNITTEST_AUTO_PYTHONPATH to any value in their environment.
+if "HUNITTEST_AUTO_PYTHONPATH" in os.environ:
+    bin_dir = os.path.dirname(os.path.realpath(__file__))
+    root_dir = os.path.abspath(os.path.join(bin_dir, ".."))
+    sys.path.insert(0, root_dir)
+    del bin_dir, root_dir
+
 from hunittest import cli
 
 if __name__ == "__main__":

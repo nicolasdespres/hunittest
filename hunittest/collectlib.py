@@ -10,6 +10,7 @@ import pkgutil
 import re
 import unittest
 import functools
+import sys
 
 from hunittest.utils import pyname_join
 
@@ -157,3 +158,11 @@ def collect_all(test_specs, pattern):
         else:
             raise RuntimeError("unsupported test spec type: {}"
                                .format(tst))
+
+def setup_top_level_directory(top_level_directory=None):
+    if not top_level_directory:
+        top_level_directory = os.getcwd()
+    if not os.path.isabs(top_level_directory):
+        raise ValueError("top level directory must be an absolute path: '{}'"
+                         .format(top_level_directory))
+    sys.path.insert(0, top_level_directory)

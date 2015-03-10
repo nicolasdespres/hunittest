@@ -19,6 +19,7 @@ from hunittest.filter_rules import PatternType
 from hunittest.filter_rules import FilterRules
 from hunittest.collectlib import collect_all
 from hunittest.completionlib import test_spec_completer
+from hunittest.collectlib import setup_top_level_directory
 
 try:
     import argcomplete
@@ -69,6 +70,16 @@ def get_version():
     return git_describe(cwd=os.path.dirname(os.path.realpath(__file__)))
 
 def build_cli():
+    def top_level_directory_param(param_str):
+        top_level_directory = param_str
+        for preproc in (os.path.expanduser,
+                        os.path.expandvars,
+                        os.path.abspath):
+            top_level_directory = preproc(top_level_directory)
+        if not os.path.isdir(top_level_directory):
+            raise argparse.ArgumentTypeError("must be a directory: '{}'"
+                                             .format(param_str))
+        return top_level_directory
     parser = argparse.ArgumentParser(
         description=__doc__,
         epilog=dedent(EPILOG),
@@ -123,6 +134,12 @@ def build_cli():
         action="store_true",
         help="Print nothing. Exit status is the outcome.")
     parser.add_argument(
+        "-t", "--top-level-directory",
+        type=top_level_directory_param,
+        action="store",
+        default=os.getcwd(),
+        help="Top level directory of project")
+    parser.add_argument(
         "--version",
         action="store_true",
         help="Print version information and exit")
@@ -143,6 +160,7 @@ def main(argv):
     if options.version:
         print(get_version())
         return 0
+    setup_top_level_directory(options.top_level_directory)
     filter_rules = options.filter_rules
     if filter_rules is None:
         filter_rules = FilterRules()

@@ -25,7 +25,7 @@ try:
     import argcomplete
 except ImportError:
     sys.stderr.write("info: you can get shell completion by installing "
-                     "'argcomplete'")
+                     "'argcomplete'\n")
     ARGCOMPLETE_ENABLED = False
 else:
     ARGCOMPLETE_ENABLED = True

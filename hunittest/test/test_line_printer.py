@@ -17,13 +17,6 @@ from hunittest.line_printer import ansi_string_truncinfo
 
 class TestTruncateAnsiString(unittest.TestCase):
 
-    # def setUp(self):
-    #     self.normal = "foobarblue"
-    #     self.normal_ansi = "foo"+Fore.GREEN+"bar"+Fore.BLUE+"blue"+Fore.RESET
-    #     self.ansi_ansi = \
-    #         Fore.RED+"foo"+Fore.GREEN+"bar"+Fore.BLUE+"blue"+Fore.RESET
-    #     self.ansi_normal = Fore.RED+"foo"+Fore.GREEN+"bar"+Fore.BLUE+"blue"
-
     def test_negative(self):
         with self.assertRaises(ValueError):
             ansi_string_truncinfo("", -1)

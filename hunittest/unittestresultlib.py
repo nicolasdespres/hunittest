@@ -178,9 +178,16 @@ class HTestResult(object):
         self._printer.overwrite_nl("-" * self._hbar_len)
         self._printer.overwrite_nl(msg)
         self._printer.write_nl("-" * self._hbar_len)
-        for lines in traceback.format_exception(*err):
-            for line in lines.splitlines():
-                self._printer.write_nl(line)
+        all_lines = [line
+                     for lines in traceback.format_exception(*err)
+                     for line in lines.splitlines()]
+        for i in range(len(all_lines)-1):
+            self._printer.write_nl(all_lines[i])
+        self._printer.write_nl(self.status_color(test_status) \
+                               + err[0].__name__ \
+                               + self.RESET \
+                               + ": " \
+                               + str(err[1]))
 
     def _print_reason(self, test, test_status, reason):
         msg = "{test_status}: {fullname}: {reason}"\

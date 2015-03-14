@@ -6,8 +6,6 @@
 from datetime import datetime
 from datetime import timedelta
 
-from hunittest.timedeltalib import timedelta_to_unit
-
 
 class StopWatch(object):
 
@@ -70,10 +68,6 @@ class StopWatch(object):
         """Return mean split time in microseconds."""
         self._check_is_started()
         return self._total_split_time / self._splits_count
-
-    @property
-    def mean_split_time_in_ms(self):
-        return timedelta_to_unit(self.mean_split_time, "ms")
 
     @property
     def last_split_time(self):

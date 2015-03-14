@@ -10,6 +10,7 @@ import sys
 
 from hunittest.line_printer import strip_ansi_escape
 from hunittest.timedeltalib import timedelta_to_hstr
+from hunittest.timedeltalib import timedelta_to_unit
 from hunittest.stopwatch import StopWatch
 
 try:
@@ -172,7 +173,8 @@ class HTestResult(object):
             fullname=self.full_test_name(test),
             test_status=self.format_test_status(test_status),
             elapsed=timedelta_to_hstr(self._stopwatch.last_split_time),
-            mean_split_time=self._stopwatch.mean_split_time_in_ms,
+            mean_split_time=timedelta_to_unit(self._stopwatch.mean_split_time,
+                                              "ms"),
             **counters)
         self._inc_status_counter(test_status)
         self._printer.overwrite(msg)

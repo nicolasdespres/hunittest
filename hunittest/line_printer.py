@@ -87,14 +87,17 @@ class LinePrinter(object):
         if not self._isatty:
             self.write("\n")
         if self._isatty and self._prev_line is not None:
-            truncinfo = ansi_string_truncinfo(self._prev_line, termwidth)
-            _, prev_line_visual_len, _ = truncinfo
-            if line_visual_len < prev_line_visual_len:
-                eraser = ""
-                if line_has_ansi:
-                    eraser += self._termnfo.reset_all
-                eraser += " " * (prev_line_visual_len - line_visual_len)
-                self.write(eraser)
+            if self._termnfo.clear_eol:
+                self.write(self._termnfo.clear_eol)
+            else:
+                truncinfo = ansi_string_truncinfo(self._prev_line, termwidth)
+                _, prev_line_visual_len, _ = truncinfo
+                if line_visual_len < prev_line_visual_len:
+                    eraser = ""
+                    if line_has_ansi:
+                        eraser += self._termnfo.reset_all
+                    eraser += " " * (prev_line_visual_len - line_visual_len)
+                    self.write(eraser)
         self._prev_line = line
         self._output.flush()
 

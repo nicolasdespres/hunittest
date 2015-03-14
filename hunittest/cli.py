@@ -12,7 +12,7 @@ from textwrap import dedent
 import subprocess
 
 from hunittest.line_printer import LinePrinter
-from hunittest.test_resultlib import HTestResult
+from hunittest.unittestresultlib import HTestResult
 from hunittest.filter_rules import RuleOperator
 from hunittest.filter_rules import FilterAction
 from hunittest.filter_rules import PatternType

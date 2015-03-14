@@ -145,6 +145,12 @@ def build_cli():
         default=os.getcwd(),
         help="Top level directory of project")
     parser.add_argument(
+        "-C", "--color",
+        action="store",
+        choices=("auto", "always", "never"),
+        default="auto",
+        help="Whether to use color.")
+    parser.add_argument(
         "--version",
         action="store_true",
         help="Print version information and exit")
@@ -173,7 +179,8 @@ def main(argv):
     if not test_specs:
         test_specs = list(get_current_packages())
     isatty = False if options.verbose else None
-    printer = LinePrinter(isatty=isatty, quiet=options.quiet)
+    printer = LinePrinter(isatty=isatty, quiet=options.quiet,
+                          color_mode=options.color)
     try:
         test_names = reported_collect(printer, test_specs, options.pattern,
                                       filter_rules)

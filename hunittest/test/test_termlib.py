@@ -4,18 +4,16 @@
 
 import unittest
 
-try:
-    from colorama import Fore
-except ImportError:
-    HAS_COLORAMA = False
-else:
-    HAS_COLORAMA = True
-
-from hunittest.line_printer import truncate_ansi_string
-from hunittest.line_printer import ansi_string_truncinfo
+from hunittest.termlib import truncate_ansi_string
+from hunittest.termlib import ansi_string_truncinfo
+from hunittest.termlib import TermInfo
 
 
 class TestTruncateAnsiString(unittest.TestCase):
+
+    def setUp(self):
+        super(TestTruncateAnsiString, self).setUp()
+        self.termnfo = TermInfo(color_mode="always")
 
     def test_negative(self):
         with self.assertRaises(ValueError):
@@ -68,9 +66,8 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(text), len(text), False),
                          ansi_string_truncinfo(text, s))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_0_ansi_first(self):
-        fixture = Fore.RED+"text"
+        fixture = self.termnfo.fore_red+"text"
         size = 0
         expected = ""
         actual = truncate_ansi_string(fixture, size)
@@ -78,46 +75,41 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((0, 0, False),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_1_ansi_first(self):
-        fixture = Fore.RED+"text"
+        fixture = self.termnfo.fore_red+"text"
         size = 1
-        expected = Fore.RED+"t"
+        expected = self.termnfo.fore_red+"t"
         actual = truncate_ansi_string(fixture, size)
         self.assertEqual(expected, actual)
         self.assertEqual((len(expected), 1, True),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_2_ansi_first(self):
-        fixture = Fore.RED+"text"
+        fixture = self.termnfo.fore_red+"text"
         size = 2
-        expected = Fore.RED+"te"
+        expected = self.termnfo.fore_red+"te"
         actual = truncate_ansi_string(fixture, size)
         self.assertEqual(expected, actual)
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_3_ansi_first(self):
-        fixture = Fore.RED+"text"
+        fixture = self.termnfo.fore_red+"text"
         size = 3
-        expected = Fore.RED+"tex"
+        expected = self.termnfo.fore_red+"tex"
         actual = truncate_ansi_string(fixture, size)
         self.assertEqual(expected, actual)
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_exceed_ansi_first(self):
-        fixture = Fore.RED+"text"
-        expected = Fore.RED+"text"
+        fixture = self.termnfo.fore_red+"text"
+        expected = self.termnfo.fore_red+"text"
         actual = truncate_ansi_string(fixture, 4000)
         self.assertEqual(expected, actual)
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_0_ansi_middle(self):
-        fixture = "123"+Fore.RED+"red"
+        fixture = "123"+self.termnfo.fore_red+"red"
         size = 0
         expected = ""
         actual = truncate_ansi_string(fixture, size)
@@ -125,9 +117,8 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, False),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_1_ansi_middle(self):
-        fixture = "123"+Fore.RED+"red"
+        fixture = "123"+self.termnfo.fore_red+"red"
         size = 1
         expected = "1"
         actual = truncate_ansi_string(fixture, size)
@@ -135,9 +126,8 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, False),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_2_ansi_middle(self):
-        fixture = "123"+Fore.RED+"red"
+        fixture = "123"+self.termnfo.fore_red+"red"
         size = 2
         expected = "12"
         actual = truncate_ansi_string(fixture, size)
@@ -145,9 +135,8 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, False),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_3_ansi_middle(self):
-        fixture = "123"+Fore.RED+"red"
+        fixture = "123"+self.termnfo.fore_red+"red"
         size = 3
         expected = "123"
         actual = truncate_ansi_string(fixture, size)
@@ -155,49 +144,44 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, False),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_4_ansi_middle(self):
-        fixture = "123"+Fore.RED+"456"
+        fixture = "123"+self.termnfo.fore_red+"456"
         size = 4
-        expected = "123"+Fore.RED+"4"
+        expected = "123"+self.termnfo.fore_red+"4"
         actual = truncate_ansi_string(fixture, size)
         self.assertEqual(expected, actual)
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_5_ansi_middle(self):
-        fixture = "123"+Fore.RED+"456"
+        fixture = "123"+self.termnfo.fore_red+"456"
         size = 5
-        expected = "123"+Fore.RED+"45"
+        expected = "123"+self.termnfo.fore_red+"45"
         actual = truncate_ansi_string(fixture, size)
         self.assertEqual(expected, actual)
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_6_ansi_middle(self):
-        fixture = "123"+Fore.RED+"456"
+        fixture = "123"+self.termnfo.fore_red+"456"
         size = 6
-        expected = "123"+Fore.RED+"456"
+        expected = "123"+self.termnfo.fore_red+"456"
         actual = truncate_ansi_string(fixture, size)
         self.assertEqual(expected, actual)
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_exceed_ansi_middle(self):
-        fixture = "123"+Fore.RED+"456"
+        fixture = "123"+self.termnfo.fore_red+"456"
         size = 10000
-        expected = "123"+Fore.RED+"456"
+        expected = "123"+self.termnfo.fore_red+"456"
         actual = truncate_ansi_string(fixture, size)
         self.assertEqual(expected, actual)
         self.assertEqual((len(expected), 6, True),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_0_ansi_first_middle(self):
-        fixture = Fore.BLUE+"123"+Fore.RED+"red"
+        fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"red"
         size = 0
         expected = ""
         actual = truncate_ansi_string(fixture, size)
@@ -205,79 +189,71 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, False),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_1_ansi_first_middle(self):
-        fixture = Fore.BLUE+"123"+Fore.RED+"red"
+        fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"red"
         size = 1
-        expected = Fore.BLUE+"1"
+        expected = self.termnfo.fore_blue+"1"
         actual = truncate_ansi_string(fixture, size)
         self.assertEqual(expected, actual)
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_2_ansi_first_middle(self):
-        fixture = Fore.BLUE+"123"+Fore.RED+"red"
+        fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"red"
         size = 2
-        expected = Fore.BLUE+"12"
+        expected = self.termnfo.fore_blue+"12"
         actual = truncate_ansi_string(fixture, size)
         self.assertEqual(expected, actual)
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_3_ansi_first_middle(self):
-        fixture = Fore.BLUE+"123"+Fore.RED+"red"
+        fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"red"
         size = 3
-        expected = Fore.BLUE+"123"
+        expected = self.termnfo.fore_blue+"123"
         actual = truncate_ansi_string(fixture, size)
         self.assertEqual(expected, actual)
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_4_ansi_first_middle(self):
-        fixture = Fore.BLUE+"123"+Fore.RED+"456"
+        fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"
         size = 4
-        expected = Fore.BLUE+"123"+Fore.RED+"4"
+        expected = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"4"
         actual = truncate_ansi_string(fixture, size)
         self.assertEqual(expected, actual)
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_5_ansi_first_middle(self):
-        fixture = Fore.BLUE+"123"+Fore.RED+"456"
+        fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"
         size = 5
-        expected = Fore.BLUE+"123"+Fore.RED+"45"
+        expected = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"45"
         actual = truncate_ansi_string(fixture, size)
         self.assertEqual(expected, actual)
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_6_ansi_first_middle(self):
-        fixture = Fore.BLUE+"123"+Fore.RED+"456"
+        fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"
         size = 6
-        expected = Fore.BLUE+"123"+Fore.RED+"456"
+        expected = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"
         actual = truncate_ansi_string(fixture, size)
         self.assertEqual(expected, actual)
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_exceed_ansi_first_middle(self):
-        fixture = Fore.BLUE+"123"+Fore.RED+"456"
+        fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"
         size = 1000
-        expected = Fore.BLUE+"123"+Fore.RED+"456"
+        expected = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"
         actual = truncate_ansi_string(fixture, size)
         self.assertEqual(expected, actual)
         self.assertEqual((len(expected), 6, True),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_0_ansi_first_middle_last(self):
-        fixture = Fore.BLUE+"123"+Fore.RED+"red"+Fore.GREEN
+        fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"red"+self.termnfo.fore_green
         size = 0
         expected = ""
         actual = truncate_ansi_string(fixture, size)
@@ -285,91 +261,82 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, False),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_1_ansi_first_middle_last(self):
-        fixture = Fore.BLUE+"123"+Fore.RED+"red"+Fore.GREEN
+        fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"red"+self.termnfo.fore_green
         size = 1
-        expected = Fore.BLUE+"1"
+        expected = self.termnfo.fore_blue+"1"
         actual = truncate_ansi_string(fixture, size)
         self.assertEqual(expected, actual)
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_2_ansi_first_middle_last(self):
-        fixture = Fore.BLUE+"123"+Fore.RED+"red"+Fore.GREEN
+        fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"red"+self.termnfo.fore_green
         size = 2
-        expected = Fore.BLUE+"12"
+        expected = self.termnfo.fore_blue+"12"
         actual = truncate_ansi_string(fixture, size)
         self.assertEqual(expected, actual)
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_3_ansi_first_middle_last(self):
-        fixture = Fore.BLUE+"123"+Fore.RED+"red"+Fore.GREEN
+        fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"red"+self.termnfo.fore_green
         size = 3
-        expected = Fore.BLUE+"123"
+        expected = self.termnfo.fore_blue+"123"
         actual = truncate_ansi_string(fixture, size)
         self.assertEqual(expected, actual)
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_4_ansi_first_middle_last(self):
-        fixture = Fore.BLUE+"123"+Fore.RED+"456"+Fore.GREEN
+        fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"+self.termnfo.fore_green
         size = 4
-        expected = Fore.BLUE+"123"+Fore.RED+"4"
+        expected = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"4"
         actual = truncate_ansi_string(fixture, size)
         self.assertEqual(expected, actual)
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_5_ansi_first_middle_last(self):
-        fixture = Fore.BLUE+"123"+Fore.RED+"456"+Fore.GREEN
+        fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"+self.termnfo.fore_green
         size = 5
-        expected = Fore.BLUE+"123"+Fore.RED+"45"
+        expected = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"45"
         actual = truncate_ansi_string(fixture, size)
         self.assertEqual(expected, actual)
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_6_ansi_first_middle_last(self):
-        fixture = Fore.BLUE+"123"+Fore.RED+"456"+Fore.GREEN
+        fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"+self.termnfo.fore_green
         size = 6
-        expected = Fore.BLUE+"123"+Fore.RED+"456"
+        expected = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"
         actual = truncate_ansi_string(fixture, size)
         self.assertEqual(expected, actual)
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_7_ansi_first_middle_last(self):
-        fixture = Fore.BLUE+"123"+Fore.RED+"456"+Fore.GREEN
+        fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"+self.termnfo.fore_green
         size = 7
-        expected = Fore.BLUE+"123"+Fore.RED+"456"+Fore.GREEN
+        expected = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"+self.termnfo.fore_green
         actual = truncate_ansi_string(fixture, size)
         self.assertEqual(expected, actual)
         self.assertEqual((len(expected), 6, True),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_size_exceed_ansi_first_middle_last(self):
-        fixture = Fore.BLUE+"123"+Fore.RED+"456"+Fore.GREEN
+        fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"+self.termnfo.fore_green
         size = 1000
-        expected = Fore.BLUE+"123"+Fore.RED+"456"+Fore.GREEN
+        expected = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"+self.termnfo.fore_green
         actual = truncate_ansi_string(fixture, size)
         self.assertEqual(expected, actual)
         self.assertEqual((len(expected), 6, True),
                          ansi_string_truncinfo(fixture, size))
 
-    @unittest.skipUnless(HAS_COLORAMA, "colorama is not installed")
     def test_use_case(self):
-        fixture = "[ 50%|253.71|"+Fore.GREEN+"2"+Fore.RESET+"|"+Fore.RED+"0"+Fore.RESET+"|"+Fore.MAGENTA+"0"+Fore.RESET+"|"+Fore.BLUE+"0"+Fore.RESET+"|"+Fore.YELLOW+"0"+Fore.RESET+"|"+Fore.CYAN+"0"+Fore.RESET+"]"+Fore.GREEN+" SUCCESS "+Fore.RESET+": testtest.test_allgood.Case1.test_success2 (0:00:00.252080)"
+        fixture = "[ 50%|253.71|"+self.termnfo.fore_green+"2"+self.termnfo.reset_all+"|"+self.termnfo.fore_red+"0"+self.termnfo.reset_all+"|"+self.termnfo.fore_magenta+"0"+self.termnfo.reset_all+"|"+self.termnfo.fore_blue+"0"+self.termnfo.reset_all+"|"+self.termnfo.fore_yellow+"0"+self.termnfo.reset_all+"|"+self.termnfo.fore_cyan+"0"+self.termnfo.reset_all+"]"+self.termnfo.fore_green+" SUCCESS "+self.termnfo.reset_all+": testtest.test_allgood.Case1.test_success2 (0:00:00.252080)"
         size = 50
-        expected = "[ 50%|253.71|"+Fore.GREEN+"2"+Fore.RESET+"|"+Fore.RED+"0"+Fore.RESET+"|"+Fore.MAGENTA+"0"+Fore.RESET+"|"+Fore.BLUE+"0"+Fore.RESET+"|"+Fore.YELLOW+"0"+Fore.RESET+"|"+Fore.CYAN+"0"+Fore.RESET+"]"+Fore.GREEN+" SUCCESS "+Fore.RESET+": testtest.test_"
+        expected = "[ 50%|253.71|"+self.termnfo.fore_green+"2"+self.termnfo.reset_all+"|"+self.termnfo.fore_red+"0"+self.termnfo.reset_all+"|"+self.termnfo.fore_magenta+"0"+self.termnfo.reset_all+"|"+self.termnfo.fore_blue+"0"+self.termnfo.reset_all+"|"+self.termnfo.fore_yellow+"0"+self.termnfo.reset_all+"|"+self.termnfo.fore_cyan+"0"+self.termnfo.reset_all+"]"+self.termnfo.fore_green+" SUCCESS "+self.termnfo.reset_all+": testtest.test_"
         actual = truncate_ansi_string(fixture, size)
         self.assertEqual(expected, actual)
         self.assertEqual((len(expected), size, True),

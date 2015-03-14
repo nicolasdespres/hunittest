@@ -11,7 +11,7 @@ It does not add or change anything on the API side of the `unittest` module.
   [ninja](https://github.com/martine/ninja)). Thus, buffering of stdout/stderr
   is always on (no `-b/--buffer` option like in default `unittest` driver).
 * No mandatory dependencies.
-* Fancy color if you install [colorama](https://pypi.python.org/pypi/colorama)
+* Fancy color if your terminal support it.
 * Convenient shell completion if you install
   [argcomplete](https://pypi.python.org/pypi/argcomplete)
 * Error are printed on the go (no need for `-c/--catch` equivalent).

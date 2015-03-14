@@ -13,21 +13,6 @@ from hunittest.timedeltalib import timedelta_to_hstr
 from hunittest.timedeltalib import timedelta_to_unit
 from hunittest.stopwatch import StopWatch
 
-try:
-    from colorama import Fore
-except ImportError:
-    sys.stderr.write("info: you can get color by install 'colorama'\n")
-    class Fore(object):
-        BLACK = ""
-        RED = ""
-        GREEN = ""
-        YELLOW = ""
-        BLUE = ""
-        MAGENTA = ""
-        CYAN = ""
-        WHITE = ""
-        RESET = ""
-
 def failfast_decorator(method):
     @functools.wraps(method)
     def inner(self, *args, **kw):
@@ -37,13 +22,6 @@ def failfast_decorator(method):
     return inner
 
 class HTestResult(object):
-
-    SUCCESS_COLOR = Fore.GREEN
-    FAILURE_COLOR = Fore.RED
-    SKIP_COLOR = Fore.BLUE
-    EXPECTED_FAILURE_COLOR = Fore.CYAN
-    UNEXPECTED_SUCCESS_COLOR = Fore.YELLOW
-    ERROR_COLOR = Fore.MAGENTA
 
     ALL_STATUS = "success failure error skip expected_failure "\
                  "unexpected_success".split()
@@ -66,6 +44,13 @@ class HTestResult(object):
         self._stdout_buffer = io.StringIO()
         self._stderr_buffer = io.StringIO()
         self._hbar_len = None
+        self.SUCCESS_COLOR = self._printer.term_info.fore_green
+        self.FAILURE_COLOR = self._printer.term_info.fore_red
+        self.SKIP_COLOR = self._printer.term_info.fore_blue
+        self.EXPECTED_FAILURE_COLOR = self._printer.term_info.fore_cyan
+        self.UNEXPECTED_SUCCESS_COLOR = self._printer.term_info.fore_yellow
+        self.ERROR_COLOR = self._printer.term_info.fore_magenta
+        self.RESET = self._printer.term_info.reset_all
 
     @property
     def shouldStop(self):
@@ -154,7 +139,7 @@ class HTestResult(object):
             formatter = "{}"
         return self.status_color(status) \
             + formatter.format(msg) \
-            + Fore.RESET
+            + self.RESET
 
     def _print_message(self, test, test_status, err=None, reason=None):
         self._stopwatch.split()
@@ -163,7 +148,7 @@ class HTestResult(object):
         for status in self.ALL_STATUS:
             counters[status] = self.status_color(status) \
                                + str(self.get_status_counter(status)) \
-                               + Fore.RESET
+                               + self.RESET
             counter_formats.append("{{{s}}}".format(s=status))
         formatter = "[{progress:>4.0%}|{mean_split_time:.2f}ms|" \
                     + "|".join(f for f in counter_formats) \
@@ -290,7 +275,7 @@ class HTestResult(object):
             color = self.SUCCESS_COLOR
         else:
             color = self.FAILURE_COLOR
-        return color + "Run" + Fore.RESET
+        return color + "Run" + self.RESET
 
     def print_summary(self):
         counters = {}
@@ -298,7 +283,7 @@ class HTestResult(object):
         for status in self.ALL_STATUS:
             counters[status] = self.status_color(status) \
                                + str(self.get_status_counter(status)) \
-                               + Fore.RESET
+                               + self.RESET
             counter_formats.append("{{{s}}} {s}".format(s=status))
 
         formatter = "{run_status} {total_count} tests in "\

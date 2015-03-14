@@ -92,8 +92,9 @@ def get_test_spec_type(test_spec):
     assert len(spec) > 0
     mod = None
     for i in range(len(spec)-1, -1, -1):
+        name_to_import = pyname_join(spec[:i+1])
         try:
-            mod = import_module(pyname_join(spec[:i+1]))
+            mod = import_module(name_to_import)
         except ImportError:
             pass
         else:
@@ -122,11 +123,17 @@ def get_test_spec_type(test_spec):
             attr = attrs[i]
             try:
                 obj = getattr(obj, attr)
-            except AttributeError:
-                raise InvalidTestSpecError(
-                    test_spec,
-                    "cannot get attribute '{}' from '{}'"
-                    .format(attr, pyname_join(mods+attrs[:i])))
+            except AttributeError as e:
+                if is_pkg(obj):
+                    try:
+                        import_module(pyname_join((obj.__name__, attr)))
+                    except ImportError as e:
+                        raise InvalidTestSpecError(test_spec, str(e))
+                else:
+                    raise InvalidTestSpecError(
+                        test_spec,
+                        "cannot get attribute '{}' from '{}'"
+                        .format(attr, pyname_join(mods+attrs[:i])))
         if is_test_case(obj):
             return (TestSpecType.test_case, obj)
         else:

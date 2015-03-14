@@ -51,6 +51,11 @@ def complete_arg(arg, completer):
 
 EPILOG = \
 """
+Exit code:
+0 - test suite was successful
+1 - test suite was not successful
+2 - an internal error happened.
+
 Copyright (c) 2015, Nicolas Desprès
 All rights reserved.
 """

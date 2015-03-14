@@ -18,6 +18,8 @@ from hunittest.termlib import ansi_string_truncinfo
 from hunittest.termlib import truncate_ansi_string
 from hunittest.termlib import TermInfo
 
+# TODO(Nicolas Despres): Handle terminal resize events.
+
 class LinePrinter(object):
     """Robust line overwriting in terminal.
 

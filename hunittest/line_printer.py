@@ -71,6 +71,27 @@ class LinePrinter(object):
         assert self._isatty
         return self._termnfo.columns
 
+    def overwrite_message(self, *args, ellipse_index=None, ellipse="..."):
+        if ellipse_index is None or not self._isatty:
+            return self.overwrite("".join(args))
+        termwidth = self._get_termwidth()
+        if not termwidth:
+            return self.overwrite("".join(args))
+        prefix = "".join(args[:ellipse_index])
+        p_trunc, p_vlen, _ = ansi_string_truncinfo(prefix, termwidth)
+        if p_trunc < len(prefix):
+            return self.overwrite("".join(args))
+        suffix = "".join(args[ellipse_index+1:])
+        s_trunc, s_vlen, _ = ansi_string_truncinfo(suffix, termwidth-p_vlen)
+        msg = args[ellipse_index]
+        m_trunc, m_vlen, m_ansi = ansi_string_truncinfo(msg,
+                                                        termwidth-p_vlen-s_vlen)
+        assert m_ansi is False, "we do not support ellipse in the middle with ansi char at the moment"
+        if m_trunc < len(msg):
+            p = (m_vlen - len(ellipse)) // 2
+            msg = msg[:p] + ellipse + msg[-p:]
+        return self.overwrite(prefix + msg[:m_trunc] + suffix)
+
     def overwrite(self, line):
         # Do nothing if the line has not changed.
         if self._prev_line is not None and self._prev_line == line:

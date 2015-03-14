@@ -150,19 +150,21 @@ class HTestResult(object):
                                + str(self.get_status_counter(status)) \
                                + self.RESET
             counter_formats.append("{{{s}}}".format(s=status))
-        formatter = "[{progress:>4.0%}|{mean_split_time:.2f}ms|" \
-                    + "|".join(f for f in counter_formats) \
-                    + "] {test_status}: {fullname} ({elapsed})"
-        msg = formatter.format(
+        prefix_formatter = "[{progress:>4.0%}|{mean_split_time:.2f}ms|" \
+                           + "|".join(f for f in counter_formats) \
+                           + "] {test_status}: "
+        suffix_formatter = " ({elapsed})"
+        prefix = prefix_formatter.format(
             progress=self.progress,
-            fullname=self.full_test_name(test),
             test_status=self.format_test_status(test_status),
-            elapsed=timedelta_to_hstr(self._stopwatch.last_split_time),
             mean_split_time=timedelta_to_unit(self._stopwatch.mean_split_time,
                                               "ms"),
             **counters)
+        suffix = suffix_formatter.format(
+            elapsed=timedelta_to_hstr(self._stopwatch.last_split_time))
+        msg = self.full_test_name(test)
         self._inc_status_counter(test_status)
-        self._printer.overwrite(msg)
+        self._printer.overwrite_message(prefix, msg, suffix, ellipse_index=1)
         if err is not None:
             self._print_error(test, test_status, err)
         if reason is not None:

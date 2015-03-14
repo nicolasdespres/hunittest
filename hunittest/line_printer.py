@@ -129,3 +129,17 @@ class LinePrinter(object):
     @property
     def term_info(self):
         return self._termnfo
+
+    def show_cursor(self):
+        self.write(self._termnfo.show_cursor)
+
+    def hide_cursor(self):
+        self.write(self._termnfo.hide_cursor)
+
+    def __enter__(self):
+        self.hide_cursor()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.show_cursor()
+        return False

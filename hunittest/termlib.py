@@ -61,28 +61,24 @@ class TermInfo(object):
     def __init__(self, term_stream=sys.stdout, color_mode="auto"):
         ### By default we have no information.
         self.color_mode = color_mode
-        self.max_colors = None
-        self.lines = None
-        self.columns = None
-        self.carriage_return = None
-        self.clear_eol = None
         for cname in ANSI_COLOR_NAMES:
             self._set_fore_color(cname, '')
             self._set_back_color(cname, '')
-        self.reset_all = ''
         self.ansi_prefix_char = None
         ### Get capabilities
         self.isatty = self._get_isatty_term(term_stream)
         # int capa
-        for attr, capa in (("max_colors", "colors"),
-                           ("lines", "lines"),
-                           ("columns", "cols")):
-            self._setintcapa(attr, capa)
+        for attr, capa, default in (("max_colors", "colors", None),
+                                    ("lines", "lines", None),
+                                    ("columns", "cols", None)):
+            self._setintcapa(attr, capa, default)
         # str capa
-        for attr, capa in (("carriage_return", "cr"),
-                           ("clear_eol", "el")):
-            self._setstrcapa(attr, capa)
-        self._init_reset_all()
+        for attr, capa, default in (("carriage_return", "cr", None),
+                                    ("clear_eol", "el", None),
+                                    ("reset_all", "sgr0", ""),
+                                    ("hide_cursor", "civis", ""),
+                                    ("show_cursor", "cnorm", "")):
+            self._setstrcapa(attr, capa, default)
         ### Initialize colors
         self.color_enabled = False
         if self.color_mode == "auto":
@@ -94,14 +90,6 @@ class TermInfo(object):
             self._init_hardcoded_colors()
         else:
             raise ValueError("invalid color mode: {}".format(color_mode))
-
-    def _init_reset_all(self):
-        curses = self._get_curses()
-        if not curses:
-            return
-        v = curses.tigetstr("sgr0")
-        if v:
-            self.reset_all = v.decode()
 
     def _get_curses(self):
         if not hasattr(self, "_curses"):
@@ -115,7 +103,8 @@ class TermInfo(object):
                 self._curses = curses
         return self._curses
 
-    def _setintcapa(self, attr, capa):
+    def _setintcapa(self, attr, capa, default):
+        setattr(self, attr, default)
         curses = self._get_curses()
         if not curses:
             return
@@ -123,7 +112,8 @@ class TermInfo(object):
         assert isinstance(value, int)
         setattr(self, attr, value)
 
-    def _setstrcapa(self, attr, capa):
+    def _setstrcapa(self, attr, capa, default):
+        setattr(self, attr, default)
         curses = self._get_curses()
         if not curses:
             return
@@ -131,6 +121,8 @@ class TermInfo(object):
         assert isinstance(value, (str, bytes, type(None)))
         if value:
             value = value.decode()
+        else:
+            value = default
         setattr(self, attr, value)
 
     def _get_isatty_term(self, stream):

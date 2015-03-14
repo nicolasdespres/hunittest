@@ -11,6 +11,7 @@ import functools
 import sys
 
 from hunittest.line_printer import strip_ansi_escape
+from hunittest.timedeltalib import timedelta_to_hstr
 
 try:
     from colorama import Fore
@@ -247,7 +248,7 @@ class HTestResult(object):
             progress=self.progress,
             fullname=self.full_test_name(test),
             test_status=self.format_test_status(test_status),
-            elapsed=self._stopwatch.last_split_time,
+            elapsed=timedelta_to_hstr(self._stopwatch.last_split_time),
             mean_split_time=self._stopwatch.mean_split_time_in_ms,
             **counters)
         self._inc_status_counter(test_status)

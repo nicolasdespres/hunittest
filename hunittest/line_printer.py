@@ -37,6 +37,9 @@ class LinePrinter(object):
     def __init__(self, output=sys.stdout, isatty=None, quiet=False,
                  color_mode="auto"):
         self._termnfo = TermInfo(output, color_mode)
+        self._cr = self._termnfo.carriage_return
+        if not self._cr:
+            self._cr = "\r"
         self._output = output
         self._isatty = self._termnfo.isatty if isatty is None else isatty
         self._quiet = quiet
@@ -74,7 +77,7 @@ class LinePrinter(object):
             return
         written_line = line
         if self._isatty:
-            self.write("\r")
+            self.write(self._cr)
             termwidth = self._get_termwidth()
             if termwidth:
                 truncinfo = ansi_string_truncinfo(line, termwidth)

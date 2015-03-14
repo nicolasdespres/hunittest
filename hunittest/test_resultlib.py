@@ -12,6 +12,7 @@ import sys
 
 from hunittest.line_printer import strip_ansi_escape
 from hunittest.timedeltalib import timedelta_to_hstr
+from hunittest.timedeltalib import timedelta_to_unit
 
 try:
     from colorama import Fore
@@ -93,7 +94,7 @@ class StopWatch(object):
 
     @property
     def mean_split_time_in_ms(self):
-        return self.mean_split_time /  timedelta(microseconds=1e3)
+        return timedelta_to_unit(self.mean_split_time, "ms")
 
     @property
     def last_split_time(self):

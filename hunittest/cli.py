@@ -169,17 +169,21 @@ def main(argv):
         test_specs = list(get_current_packages())
     isatty = False if options.verbose else None
     printer = LinePrinter(isatty=isatty, quiet=options.quiet)
-    test_names = reported_collect(printer, test_specs, options.pattern,
-                                  filter_rules)
-    if options.collect_only:
+    try:
+        test_names = reported_collect(printer, test_specs, options.pattern,
+                                      filter_rules)
+        if options.collect_only:
+            printer.new_line()
+            return 0
+        test_suite = unittest.defaultTestLoader.loadTestsFromNames(test_names)
+        result = HTestResult(printer, len(test_names), failfast=options.failfast)
+        test_suite.run(result)
+        result.print_summary()
         printer.new_line()
-        return 0
-    test_suite = unittest.defaultTestLoader.loadTestsFromNames(test_names)
-    result = HTestResult(printer, len(test_names), failfast=options.failfast)
-    test_suite.run(result)
-    result.print_summary()
-    printer.new_line()
-    return 0 if result.wasSuccessful() else 1
+        return 0 if result.wasSuccessful() else 1
+    except Exception as e:
+        printer.write_exception()
+        return 2
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))

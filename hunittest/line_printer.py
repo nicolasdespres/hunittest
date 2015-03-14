@@ -9,6 +9,7 @@ import re
 import fcntl
 import termios
 import struct
+import traceback
 
 
 ANSI_ESCAPE_PATTERN = r'\x1b.*?m'
@@ -176,3 +177,8 @@ class LinePrinter(object):
     @property
     def quiet(self):
         return self._quiet
+
+    def write_exception(self):
+        self.new_line()
+        for line in traceback.format_exc().splitlines():
+            self.write_nl(line)

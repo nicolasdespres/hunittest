@@ -45,7 +45,6 @@ def build_test_name(test_module, test_case=None, test_method=None):
 
 def collect_all_test_modules(package, pattern):
     directory = os.path.realpath(os.path.dirname(package.__file__))
-    assert directory.startswith(os.getcwd())
     # We cannot use the finder to load the module because it mess up unittest.
     # Using import_module() is fine.
     for finder, name, ispkg in pkgutil.walk_packages(path=[directory]):
@@ -78,7 +77,8 @@ class InvalidTestSpecError(Exception):
         return "invalid test spec '{}': {}".format(self.test_spec,
                                                    self.message)
 
-def get_test_spec_type(test_spec):
+def get_test_spec_type(test_spec, top_level_directory):
+    _check_top_level_directory(top_level_directory)
     if not test_spec:
         raise ValueError("empty test spec")
     if isinstance(test_spec, str):
@@ -101,14 +101,14 @@ def get_test_spec_type(test_spec):
             break
     if mod is None:
         raise InvalidTestSpecError(test_spec, "failed to import anything")
-    if not os.path.realpath(os.path.dirname(mod.__file__)).startswith(os.path.realpath(os.getcwd())):
+    if not os.path.realpath(os.path.dirname(mod.__file__)).startswith(top_level_directory):
         raise InvalidTestSpecError(
             test_spec,
-            "package or module '{modname}' (from {modpath}), "
-            "refers outside of your current directory "
-            "you should set PYTHONPATH=."
+            "package or module '{modname}' (from '{modpath}'), "
+            "refers outside of your top level directory '{top_level_dir}'"
             .format(modname=mod.__name__,
                     modpath=mod.__file__,
+                    top_level_dir=top_level_directory,
                 ))
     mods = spec[:i+1]
     attrs = spec[i+1:]
@@ -151,9 +151,9 @@ def collect_all_from_package(package, pattern):
     for test_module in collect_all_test_modules(package, pattern):
         yield from collect_all_from_module(test_module)
 
-def collect_all(test_specs, pattern):
+def collect_all(test_specs, pattern, top_level_directory):
     for test_spec in test_specs:
-        tst, value = get_test_spec_type(test_spec)
+        tst, value = get_test_spec_type(test_spec, top_level_directory)
         if tst is TestSpecType.package:
             yield from collect_all_from_package(value, pattern)
         elif tst is TestSpecType.module:
@@ -166,12 +166,15 @@ def collect_all(test_specs, pattern):
             raise RuntimeError("unsupported test spec type: {}"
                                .format(tst))
 
-def setup_top_level_directory(top_level_directory=None):
-    if not top_level_directory:
-        top_level_directory = os.getcwd()
+def _check_top_level_directory(top_level_directory):
     if not os.path.isabs(top_level_directory):
         raise ValueError("top level directory must be an absolute path: '{}'"
                          .format(top_level_directory))
     if not os.path.isdir(top_level_directory):
         raise NotADirectoryError(top_level_directory)
+
+def setup_top_level_directory(top_level_directory=None):
+    if not top_level_directory:
+        top_level_directory = os.getcwd()
+    _check_top_level_directory(top_level_directory)
     sys.path.insert(0, top_level_directory)

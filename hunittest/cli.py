@@ -31,8 +31,9 @@ else:
     ARGCOMPLETE_ENABLED = True
 
 
-def reported_collect(printer, test_specs, pattern, filter_rules):
-    collection = collect_all(test_specs, pattern)
+def reported_collect(printer, test_specs, pattern, filter_rules,
+                     top_level_directory):
+    collection = collect_all(test_specs, pattern, top_level_directory)
     test_names = []
     for n, test_name in enumerate(filter_rules(collection)):
         printer.overwrite("collecting {:d}: {}"
@@ -79,11 +80,13 @@ def build_cli():
         top_level_directory = param_str
         for preproc in (os.path.expanduser,
                         os.path.expandvars,
-                        os.path.abspath):
+                        os.path.abspath,
+                        os.path.realpath):
             top_level_directory = preproc(top_level_directory)
         if not os.path.isdir(top_level_directory):
             raise argparse.ArgumentTypeError("must be a directory: '{}'"
                                              .format(param_str))
+        assert os.path.isabs(top_level_directory)
         return top_level_directory
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -183,7 +186,8 @@ def main(argv):
                      color_mode=options.color) as printer:
         try:
             test_names = reported_collect(printer, test_specs, options.pattern,
-                                          filter_rules)
+                                          filter_rules,
+                                          options.top_level_directory)
             if options.collect_only:
                 printer.new_line()
                 return 0

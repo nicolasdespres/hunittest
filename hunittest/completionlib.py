@@ -78,7 +78,8 @@ def gen_test_spec_completion(prefix, parsed_args):
     else:
         test_spec = spec[:-1]
         rest = spec[-1]
-        tst, obj = get_test_spec_type(test_spec)
+        tst, obj = get_test_spec_type(test_spec,
+                                      parsed_args.top_level_directory)
         if tst is TestSpecType.package:
             yield from argcomplete_modules(obj, parsed_args.pattern, rest)
         elif tst is TestSpecType.module:

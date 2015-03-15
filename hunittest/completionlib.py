@@ -2,6 +2,7 @@
 """Routines to do shell-completion of CLI argument.
 """
 
+# TODO(Nicolas Despres): Unit test this module!!
 
 import os
 import pkgutil

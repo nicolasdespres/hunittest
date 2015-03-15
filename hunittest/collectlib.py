@@ -172,4 +172,6 @@ def setup_top_level_directory(top_level_directory=None):
     if not os.path.isabs(top_level_directory):
         raise ValueError("top level directory must be an absolute path: '{}'"
                          .format(top_level_directory))
+    if not os.path.isdir(top_level_directory):
+        raise NotADirectoryError(top_level_directory)
     sys.path.insert(0, top_level_directory)

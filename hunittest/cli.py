@@ -187,7 +187,8 @@ def main(argv):
             if options.collect_only:
                 printer.new_line()
                 return 0
-            test_suite = unittest.defaultTestLoader.loadTestsFromNames(test_names)
+            test_suite = unittest.defaultTestLoader \
+                                 .loadTestsFromNames(test_names)
             result = HTestResult(printer, len(test_names),
                                  failfast=options.failfast)
             test_suite.run(result)

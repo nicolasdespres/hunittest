@@ -36,8 +36,9 @@ def reported_collect(printer, test_specs, pattern, filter_rules,
     collection = collect_all(test_specs, pattern, top_level_directory)
     test_names = []
     for n, test_name in enumerate(filter_rules(collection)):
-        printer.overwrite("collecting {:d}: {}"
-                          .format(n+1, test_name))
+        prefix = "collecting {:d}: ".format(n+1)
+        msg = test_name
+        printer.overwrite_message(prefix, msg, ellipse_index=1)
         test_names.append(test_name)
     if len(test_names) == 0:
         printer.overwrite("no test collected")

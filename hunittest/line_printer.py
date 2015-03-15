@@ -60,6 +60,15 @@ class LinePrinter(object):
             return
         self._write(string)
 
+    def _write_termctrl(self, string):
+        """Use it only to write special terminal control character.
+
+        Most of the time you must use write().
+        """
+        if self._quiet:
+            return
+        self._output.write(string)
+
     def write_nl(self, line, auto=True):
         self.write(line)
         self.new_line(auto=auto)
@@ -154,10 +163,10 @@ class LinePrinter(object):
         return self._termnfo
 
     def show_cursor(self):
-        self.write(self._termnfo.show_cursor)
+        self._write_termctrl(self._termnfo.show_cursor)
 
     def hide_cursor(self):
-        self.write(self._termnfo.hide_cursor)
+        self._write_termctrl(self._termnfo.hide_cursor)
 
     def __enter__(self):
         self.hide_cursor()

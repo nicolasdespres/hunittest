@@ -22,6 +22,7 @@ It does not add or change anything on the API side of the `unittest` module.
 * Filter rules system.
 * Time individual tests
 * Import error in test module are easy to debug.
+* Tested with Python 3.4.x
 
 # Installation
 

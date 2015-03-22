@@ -101,13 +101,15 @@ def get_test_spec_type(test_spec, top_level_directory):
             break
     if mod is None:
         raise InvalidTestSpecError(test_spec, "failed to import anything")
-    if not os.path.realpath(os.path.dirname(mod.__file__)).startswith(top_level_directory):
+    modpath = os.path.realpath(mod.__file__)
+    moddir = os.path.dirname(modpath)
+    if not moddir.startswith(top_level_directory):
         raise InvalidTestSpecError(
             test_spec,
             "package or module '{modname}' (from '{modpath}'), "
             "refers outside of your top level directory '{top_level_dir}'"
             .format(modname=mod.__name__,
-                    modpath=mod.__file__,
+                    moddir=moddir,
                     top_level_dir=top_level_directory,
                 ))
     mods = spec[:i+1]

@@ -74,6 +74,11 @@ Here is just what I did for *zsh*:
 # Known bugs
 
 * Does not work with nested TestCase.
+* If shell-completion does not work whereas we have configured it
+  well, you probably have an module that cannot be imported. I do not
+  know how to print error message in this case using
+  argcomplete. Thus, to trouble shoot such situation do:
+  `hunittest -c myproject.test` to check for any error.
 
 # Hacking
 

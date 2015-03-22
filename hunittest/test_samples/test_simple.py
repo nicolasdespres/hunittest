@@ -50,6 +50,15 @@ class Case1(unittest.TestCase):
         sys.stderr.write("!!!!unexpected success stderr!!!!")
         self.assertEqual(1, 1, "not broken after all")
 
+    def test_multiline_error_message(self):
+        self.assertEqual("foo", "bar")
+
+    def test_nested_error(self):
+        try:
+            raise RuntimeError("test error")
+        except RuntimeError:
+            self.assertEqual("foo", "bar")
+
 class Case2(unittest.TestCase):
 
     def test_success(self):

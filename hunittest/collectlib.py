@@ -64,8 +64,9 @@ class TestSpecType(Enum):
     test_case = 3
     test_method = 4
 
-def is_pkg(mod):
-    return os.path.basename(mod.__file__) == "__init__.py"
+def is_pkg(obj):
+    return hasattr(obj, "__file__") \
+        and os.path.basename(obj.__file__) == "__init__.py"
 
 class InvalidTestSpecError(Exception):
 

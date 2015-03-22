@@ -134,10 +134,13 @@ def get_test_spec_type(test_spec, top_level_directory):
                 obj = getattr(obj, attr)
             except AttributeError as e:
                 if is_pkg(obj):
-                    try:
-                        import_module(pyname_join((obj.__name__, attr)))
-                    except ImportError as e:
-                        raise InvalidTestSpecError(test_spec, str(e))
+                    # Normally we stop importing package, sub-packages and
+                    # modules when we reach the TestCase class. If there
+                    # is an error when importing the module we stop earlier
+                    # and the error shows up again here.
+                    import_module(pyname_join((obj.__name__, attr)))
+                    assert False, \
+                        "an ImportError exception should have been raised"
                 else:
                     raise InvalidTestSpecError(
                         test_spec,

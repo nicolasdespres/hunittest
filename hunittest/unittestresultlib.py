@@ -185,11 +185,14 @@ class HTestResult(object):
             lines = all_lines[i]
             for line in lines.splitlines():
                 self._printer.write_nl(line)
+        err_lines = str(err[1]).splitlines()
         self._printer.write_nl(self.status_color(test_status) \
                                + err[0].__name__ \
                                + self.RESET \
                                + ": " \
-                               + str(err[1]))
+                               + err_lines[0])
+        for i in range(1, len(err_lines)):
+            self._printer.write_nl(err_lines[i])
 
     def _print_reason(self, test, test_status, reason):
         msg = "{test_status}: {fullname}: {reason}"\

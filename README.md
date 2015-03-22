@@ -21,7 +21,7 @@ It does not add or change anything on the API side of the `unittest` module.
 * `-t/--top-level-directory` option just like `unittest`.
 * Filter rules system.
 * Time individual tests
-* Import error in test module are easy to debug.
+* ImportError are properly reported while collecting test spec.
 * Coverage support if you install [coverage](https://pypi.python.org/pypi/coverage/4.0a5).
 * Tested with Python 3.4.x
 

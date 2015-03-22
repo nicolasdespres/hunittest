@@ -92,16 +92,22 @@ def get_test_spec_type(test_spec, top_level_directory):
                         .format(type(test_spec).__name__))
     assert len(spec) > 0
     mod = None
+    first_import_err = None
     for i in range(len(spec)-1, -1, -1):
         name_to_import = pyname_join(spec[:i+1])
         try:
             mod = import_module(name_to_import)
-        except ImportError:
+        except ImportError as e:
+            if first_import_err is None:
+                first_import_err = e
             pass
         else:
             break
     if mod is None:
-        raise InvalidTestSpecError(test_spec, "failed to import anything")
+        # It happens when we failed to import the first package/module
+        # of the test spec.
+        assert first_import_err is not None
+        raise first_import_err
     modpath = os.path.realpath(mod.__file__)
     moddir = os.path.dirname(modpath)
     if not moddir.startswith(top_level_directory):

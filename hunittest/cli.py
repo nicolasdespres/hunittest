@@ -10,6 +10,8 @@ import operator
 import time
 from textwrap import dedent
 import subprocess
+from contextlib import contextmanager
+import re
 
 from hunittest.line_printer import LinePrinter
 from hunittest.unittestresultlib import HTestResult
@@ -20,6 +22,7 @@ from hunittest.filter_rules import FilterRules
 from hunittest.collectlib import collect_all
 from hunittest.completionlib import test_spec_completer
 from hunittest.collectlib import setup_top_level_directory
+from hunittest.collectlib import get_test_spec_last_pkg
 
 try:
     import argcomplete
@@ -30,6 +33,12 @@ except ImportError:
 else:
     ARGCOMPLETE_ENABLED = True
 
+try:
+    import coverage
+except ImportError:
+    COVERAGE_ENABLED = False
+else:
+    COVERAGE_ENABLED = True
 
 def reported_collect(printer, test_specs, pattern, filter_rules,
                      top_level_directory):
@@ -75,6 +84,31 @@ def git_describe(cwd="."):
 
 def get_version():
     return git_describe(cwd=os.path.dirname(os.path.realpath(__file__)))
+
+def get_coverage_omit_list(options):
+    l = [os.path.join(os.path.dirname(__file__), "*")] # myself
+    for test_spec in options.test_specs:
+        pkgname = get_test_spec_last_pkg(test_spec)
+        path = re.subn(r"\.", "/", pkgname)[0]
+        path = os.path.join(path, "*")
+        l.append(path)
+    return l
+
+@contextmanager
+def coverage_instrument(options):
+    cov = None
+    if COVERAGE_ENABLED and options.coverage_html:
+        cov = coverage.Coverage()
+    try:
+        if cov is not None:
+            cov.start()
+        yield
+    finally:
+        if cov is not None:
+            cov.stop()
+            cov.save()
+            cov.html_report(directory=options.coverage_html,
+                            omit=get_coverage_omit_list(options))
 
 def build_cli():
     def top_level_directory_param(param_str):
@@ -154,6 +188,14 @@ def build_cli():
         choices=("auto", "always", "never"),
         default="auto",
         help="Whether to use color.")
+    if COVERAGE_ENABLED:
+        coverage_html_help = "Where to store the html report"
+    else:
+        coverage_html_help = "install 'coverage' to support enable this option"
+    parser.add_argument(
+        "--coverage-html",
+        action="store",
+        help=coverage_html_help)
     parser.add_argument(
         "--version",
         action="store_true",
@@ -196,7 +238,8 @@ def main(argv):
                                  .loadTestsFromNames(test_names)
             result = HTestResult(printer, len(test_names),
                                  failfast=options.failfast)
-            test_suite.run(result)
+            with coverage_instrument(options):
+                test_suite.run(result)
             result.print_summary()
             printer.new_line()
             return 0 if result.wasSuccessful() else 1

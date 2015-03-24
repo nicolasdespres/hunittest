@@ -252,6 +252,7 @@ class HTestResult(object):
             self._printer.log_write_nl(err_lines[i])
 
     def _print_reason(self, test, test_status, reason):
+        assert reason is not None
         msg = "{test_status}: {fullname}: {reason}"\
             .format(test_status=self.format_test_status(test_status,
                                                         aligned=False),

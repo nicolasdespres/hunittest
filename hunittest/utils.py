@@ -5,6 +5,7 @@
 
 import os
 import re
+from enum import Enum
 
 
 def pyname_join(seq):
@@ -27,3 +28,10 @@ def is_empty_generator(generator):
         return True
     else:
         return False
+
+class AutoEnum(Enum):
+    def __new__(cls):
+        value = len(cls.__members__) + 1
+        obj = object.__new__(cls)
+        obj._value_ = value
+        return obj

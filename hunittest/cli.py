@@ -25,6 +25,7 @@ from hunittest.completionlib import test_spec_completer
 from hunittest.collectlib import setup_top_level_directory
 from hunittest.collectlib import get_test_spec_last_pkg
 from hunittest.utils import AutoEnum
+from hunittest import envar
 
 try:
     import argcomplete
@@ -62,6 +63,8 @@ def complete_arg(arg, completer):
         arg.completer = completer
     return arg
 
+DEFAULT_LOG_FILE = ".hunittest.log"
+
 EPILOGUE = \
 """
 Exit code:
@@ -71,11 +74,15 @@ Exit code:
 
 Environment variables:
  PAGER - the pager to use (see --pager)
- HUNITTEST_LOG_FILE - name of the file where error are logged
+ {envar_log_file} - name of the file where error are logged
+                      (default: {default_log_file})
 
 Copyright (c) 2015, Nicolas Desprès
 All rights reserved.
-"""
+""".format(
+    envar_log_file=envar.LOG_FILE,
+    default_log_file=DEFAULT_LOG_FILE,
+)
 
 def git_describe(cwd="."):
     """Return the description of this repository.
@@ -267,7 +274,7 @@ def main(argv):
         test_specs = list(get_current_packages())
     isatty = False if options.verbose else None
     if options.pager is PagerMode.auto:
-        log_filename = os.environ.get("HUNITTEST_LOG_FILE", ".hunittest.log")
+        log_filename = os.environ.get(envar.LOG_FILE, DEFAULT_LOG_FILE)
     elif options.pager is PagerMode.never:
         log_filename = None
     else:

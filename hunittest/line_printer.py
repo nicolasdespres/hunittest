@@ -56,6 +56,9 @@ class LinePrinter(object):
         self._output.write(string)
 
     def write(self, string):
+        if not isinstance(string, str):
+            raise TypeError("string must be str, not {}"
+                            .format(type(string).__name__))
         if self._quiet:
             return
         self._write(string)
@@ -71,6 +74,9 @@ class LinePrinter(object):
         self._output.flush()
 
     def write_nl(self, line, auto=True):
+        if not isinstance(line, str):
+            raise TypeError("line must be str, not {}"
+                            .format(type(line).__name__))
         self.write(line)
         self.new_line(auto=auto)
 
@@ -84,6 +90,10 @@ class LinePrinter(object):
         return self._termnfo.columns
 
     def overwrite_message(self, *args, ellipse_index=None, ellipse="..."):
+        for i, arg in enumerate(args):
+            if not isinstance(arg, str):
+                raise TypeError("positional argument {} must be a str, not {}"
+                                .format(i, type(arg).__name__))
         if ellipse_index is None or not self._isatty:
             return self.overwrite("".join(args))
         termwidth = self._get_termwidth()
@@ -105,6 +115,9 @@ class LinePrinter(object):
         return self.overwrite(prefix + msg[:m_trunc] + suffix)
 
     def overwrite(self, line):
+        if not isinstance(line, str):
+            raise TypeError("line must be str, not {}"
+                            .format(type(line).__name__))
         # Do nothing if the line has not changed.
         if self._prev_line is not None and self._prev_line == line:
             return
@@ -135,6 +148,9 @@ class LinePrinter(object):
         self._output.flush()
 
     def overwrite_nl(self, line, auto=True):
+        if not isinstance(line, str):
+            raise TypeError("line must be str, not {}"
+                            .format(type(line).__name__))
         self.overwrite(line)
         self.new_line(auto=auto)
 

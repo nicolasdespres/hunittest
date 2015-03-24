@@ -15,10 +15,11 @@ from hunittest.stopwatch import StopWatch
 
 def failfast_decorator(method):
     @functools.wraps(method)
-    def inner(self, *args, **kw):
+    def inner(self, test, err=None):
         if getattr(self, 'failfast', False):
+            self._last_traceback = err[2]
             self.stop()
-        return method(self, *args, **kw)
+        return method(self, test, err)
     return inner
 
 class _LogLinePrinter(object):
@@ -101,6 +102,7 @@ class HTestResult(object):
         self._stdout_buffer = io.StringIO()
         self._stderr_buffer = io.StringIO()
         self._hbar_len = None
+        self._last_traceback = None
         self.SUCCESS_COLOR = self._printer.term_info.fore_green
         self.FAILURE_COLOR = self._printer.term_info.fore_red
         self.SKIP_COLOR = self._printer.term_info.fore_blue
@@ -337,7 +339,7 @@ class HTestResult(object):
         self._print_message(test, "expected_failure")
 
     @failfast_decorator
-    def addUnexpectedSuccess(self, test):
+    def addUnexpectedSuccess(self, test, err=None):
         self._print_message(test, "unexpected_success")
 
     def _format_run_status(self):
@@ -382,3 +384,7 @@ class HTestResult(object):
     @property
     def log_filename(self):
         return self._printer.filename
+
+    @property
+    def last_traceback(self):
+        return self._last_traceback

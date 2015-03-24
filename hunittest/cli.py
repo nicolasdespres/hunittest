@@ -144,6 +144,9 @@ def maybe_spawn_pager(options, log_filename):
     else:
         raise ValueError("invalid pager option: {}".format(options.pager))
 
+def is_pdb_on(options):
+    return not options.quiet and options.pdb
+
 def build_cli():
     class RawDescriptionWithArgumentDefaultsHelpFormatter(
             argparse.ArgumentDefaultsHelpFormatter,
@@ -258,6 +261,11 @@ def build_cli():
         default=PagerMode.auto,
         help="Whether to spawn a pager showing the errors/failures log.")
     parser.add_argument(
+        "--pdb",
+        action="store_true",
+        default=False,
+        help="Popup pdb when error/failure happens (implies --failfast)")
+    parser.add_argument(
         "--version",
         action="store_true",
         help="Print version information and exit")
@@ -292,6 +300,7 @@ def main(argv):
         log_filename = None
     else:
         raise ValueError("invalid pager option: {!r}".format(options.pager))
+    failfast = options.failfast or options.pdb
     result = None
     with LinePrinter(isatty=isatty, quiet=options.quiet,
                      color_mode=options.color) as printer:
@@ -305,7 +314,7 @@ def main(argv):
             test_suite = unittest.defaultTestLoader \
                                  .loadTestsFromNames(test_names)
             result = HTestResult(printer, len(test_names),
-                                 failfast=options.failfast,
+                                 failfast=failfast,
                                  log_filename=log_filename)
             with coverage_instrument(options):
                 test_suite.run(result)
@@ -320,9 +329,19 @@ def main(argv):
     if result.wasSuccessful():
         return 0
     else:
-        maybe_spawn_pager(options, log_filename)
-        # maybe_spawn_pager may never return if the pager has been
-        # spawned. Otherwise we return 1.
+        if is_pdb_on(options):
+            if result.last_traceback is not None:
+                printer.write_nl(">>> Entering pdb")
+                # TODO(Nicolas Despres): Do not know how to properly skip
+                #  the test runner traceback levels and to go up to the
+                #  unit test case frame.
+                #  See: http://pydoc.net/Python/django-pdb/0.4.1/django_pdb.testrunners/
+                import pdb
+                pdb.post_mortem(result.last_traceback)
+        else:
+            maybe_spawn_pager(options, log_filename)
+            # maybe_spawn_pager may never return if the pager has been
+            # spawned. Otherwise we return 1.
         return 1
 
 if __name__ == "__main__":

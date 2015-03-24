@@ -63,8 +63,12 @@ def complete_arg(arg, completer):
         arg.completer = completer
     return arg
 
-DEFAULT_LOG_FILE = ".hunittest.log"
+DEFAULT_WORKDIR = ".hunittest"
 DEFAULT_PAGER = "less"
+
+def get_log_filename():
+    return os.path.join(os.environ.get(envar.WORKDIR, DEFAULT_WORKDIR),
+                        "log")
 
 EPILOGUE = \
 """
@@ -75,15 +79,15 @@ Exit code:
 
 Environment variables:
  PAGER - the pager to use (see --pager) (default: {default_pager})
- {envar_log_file} - name of the file where error are logged
-                      (default: {default_log_file})
+ {envar_workdir} - directory where hunittest stores its stuff
+                     (default: {default_workdir})
 
 Copyright (c) 2015, Nicolas Desprès
 All rights reserved.
 """.format(
     default_pager=DEFAULT_PAGER,
-    envar_log_file=envar.LOG_FILE,
-    default_log_file=DEFAULT_LOG_FILE,
+    envar_workdir=envar.WORKDIR,
+    default_workdir=DEFAULT_WORKDIR,
 )
 
 def git_describe(cwd="."):
@@ -295,7 +299,7 @@ def main(argv):
         test_specs = list(get_current_packages())
     isatty = False if options.verbose else None
     if options.pager is PagerMode.auto:
-        log_filename = os.environ.get(envar.LOG_FILE, DEFAULT_LOG_FILE)
+        log_filename = get_log_filename()
     elif options.pager is PagerMode.never:
         log_filename = None
     else:

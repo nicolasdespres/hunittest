@@ -7,11 +7,13 @@ import traceback
 import io
 import functools
 import sys
+import os
 
 from hunittest.line_printer import strip_ansi_escape
 from hunittest.timedeltalib import timedelta_to_hstr
 from hunittest.timedeltalib import timedelta_to_unit
 from hunittest.stopwatch import StopWatch
+from hunittest.utils import mkdir_p
 
 def failfast_decorator(method):
     @functools.wraps(method)
@@ -34,6 +36,7 @@ class _LogLinePrinter(object):
         self._filename = filename
         self._file = None
         if self._filename is not None:
+            mkdir_p(os.path.dirname(filename))
             self._file = open(filename, "w")
 
     def close(self):

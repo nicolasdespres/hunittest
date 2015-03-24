@@ -3,4 +3,4 @@
 """
 
 _PREFIX = "HUNITTEST"
-LOG_FILE = "_".join((_PREFIX, "LOG_FILE"))
+WORKDIR = "_".join((_PREFIX, "WORKDIR"))

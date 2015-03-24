@@ -62,7 +62,7 @@ def complete_arg(arg, completer):
         arg.completer = completer
     return arg
 
-EPILOG = \
+EPILOGUE = \
 """
 Exit code:
 0 - test suite was successful
@@ -154,7 +154,7 @@ def build_cli():
         return getattr(PagerMode, param_str)
     parser = argparse.ArgumentParser(
         description=__doc__,
-        epilog=dedent(EPILOG),
+        epilog=dedent(EPILOGUE),
         formatter_class=RawDescriptionWithArgumentDefaultsHelpFormatter)
     parser.add_argument(
         "-v", "--verbose",

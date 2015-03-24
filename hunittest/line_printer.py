@@ -68,6 +68,7 @@ class LinePrinter(object):
         if self._quiet:
             return
         self._output.write(string)
+        self._output.flush()
 
     def write_nl(self, line, auto=True):
         self.write(line)

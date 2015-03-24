@@ -150,6 +150,22 @@ def build_cli():
             argparse.RawDescriptionHelpFormatter,
     ):
         """Mix both formatter."""
+    # TODO(Nicolas Despres): Generalize this for any enum class.
+    class PagerModeAction(argparse.Action):
+        def __init__(self, option_strings, dest, nargs=None, **kwargs):
+            if nargs is not None:
+                raise ValueError("'nargs' is not allowed.")
+            if "choices" in kwargs:
+                raise ValueError("'choices' is not allowed")
+            kwargs["choices"] = [pm.name for pm in PagerMode]
+            super(PagerModeAction, self).__init__(option_strings, dest,
+                                                  **kwargs)
+        def __call__(self, parser, namespace, values, option_string=None):
+            assert isinstance(values, str)
+            # Cannot raise AttributeError because we set 'choices' in the
+            # first place.
+            v = getattr(PagerMode, values)
+            setattr(namespace, self.dest, v)
     def top_level_directory_param(param_str):
         top_level_directory = param_str
         for preproc in (os.path.expanduser,
@@ -162,9 +178,6 @@ def build_cli():
                                              .format(param_str))
         assert os.path.isabs(top_level_directory)
         return top_level_directory
-    def pager_param(param_str):
-        # Cannot raise AttributeError since the choices is limited by argparse.
-        return getattr(PagerMode, param_str)
     parser = argparse.ArgumentParser(
         description=__doc__,
         epilog=dedent(EPILOGUE),
@@ -241,11 +254,9 @@ def build_cli():
         help=coverage_html_help)
     parser.add_argument(
         "--pager",
-        type=pager_param,
-        action="store",
-        choices=[pm.name for pm in PagerMode],
-        default=PagerMode.auto.name,
-        help="Automatically pipe the result to a pager.")
+        action=PagerModeAction,
+        default=PagerMode.auto,
+        help="Whether to spawn a pager showing the errors/failures log.")
     parser.add_argument(
         "--version",
         action="store_true",

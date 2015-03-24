@@ -64,6 +64,7 @@ def complete_arg(arg, completer):
     return arg
 
 DEFAULT_LOG_FILE = ".hunittest.log"
+DEFAULT_PAGER = "less"
 
 EPILOGUE = \
 """
@@ -73,13 +74,14 @@ Exit code:
  2 - an internal error happened.
 
 Environment variables:
- PAGER - the pager to use (see --pager)
+ PAGER - the pager to use (see --pager) (default: {default_pager})
  {envar_log_file} - name of the file where error are logged
                       (default: {default_log_file})
 
 Copyright (c) 2015, Nicolas Desprès
 All rights reserved.
 """.format(
+    default_pager=DEFAULT_PAGER,
     envar_log_file=envar.LOG_FILE,
     default_log_file=DEFAULT_LOG_FILE,
 )
@@ -128,7 +130,7 @@ class PagerMode(AutoEnum):
     never = ()
 
 def spawn_pager(filename):
-    pager = os.environ.get("PAGER", "less")
+    pager = os.environ.get("PAGER", DEFAULT_PAGER)
     executable = shutil.which(pager)
     os.execvp(executable, [pager, filename])
 

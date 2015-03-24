@@ -26,7 +26,9 @@ It does not add or change anything on the API side of the `unittest` module.
   [coverage](https://pypi.python.org/pypi/coverage/4.0a5).
 * Automatically pop-up a page with the error message if any (see
   `--pager` options).
-* Support `--pdb` option to start debugging when the first error happens.
+* Support `--pdb` option to start debugging when the first error
+  happens.
+* Run test whose last status was error or failure first.
 * Tested with Python 3.4.x
 
 # Installation

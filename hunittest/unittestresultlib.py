@@ -106,6 +106,7 @@ class HTestResult(object):
         self._stderr_buffer = io.StringIO()
         self._hbar_len = None
         self._last_traceback = None
+        self._error_test_specs = []
         self.SUCCESS_COLOR = self._printer.term_info.fore_green
         self.FAILURE_COLOR = self._printer.term_info.fore_red
         self.SKIP_COLOR = self._printer.term_info.fore_blue
@@ -233,10 +234,12 @@ class HTestResult(object):
 
     def _print_error(self, test, test_status, err):
         assert err is not None
+        full_test_name = self.full_test_name(test)
+        self._error_test_specs.append(full_test_name)
         msg = "{test_status}: {fullname}"\
             .format(test_status=self.format_test_status(test_status,
                                                         aligned=False),
-                    fullname=self.full_test_name(test))
+                    fullname=full_test_name)
         self._hbar_len = len(strip_ansi_escape(msg))
         self._printer.log_overwrite_nl("-" * self._hbar_len)
         self._printer.log_overwrite_nl(msg)
@@ -390,3 +393,7 @@ class HTestResult(object):
     @property
     def last_traceback(self):
         return self._last_traceback
+
+    @property
+    def error_test_specs(self):
+        return self._error_test_specs

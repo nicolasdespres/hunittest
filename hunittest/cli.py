@@ -25,6 +25,7 @@ from hunittest.completionlib import test_spec_completer
 from hunittest.collectlib import setup_top_level_directory
 from hunittest.collectlib import get_test_spec_last_pkg
 from hunittest.utils import AutoEnum
+from hunittest.utils import mkdir_p
 from hunittest import envar
 
 try:
@@ -45,13 +46,18 @@ else:
 
 def reported_collect(printer, test_specs, pattern, filter_rules,
                      top_level_directory):
+    printer.overwrite("Loading previous errors...")
+    previous_errors = load_error_test_specs()
     collection = collect_all(test_specs, pattern, top_level_directory)
     test_names = []
     for n, test_name in enumerate(filter_rules(collection)):
         prefix = "collecting {:d}: ".format(n+1)
         msg = test_name
         printer.overwrite_message(prefix, msg, ellipse_index=1)
-        test_names.append(test_name)
+        if test_name in previous_errors:
+            test_names.insert(0, test_name)
+        else:
+            test_names.append(test_name)
     if len(test_names) == 0:
         printer.overwrite("no test collected")
     else:
@@ -66,9 +72,14 @@ def complete_arg(arg, completer):
 DEFAULT_WORKDIR = ".hunittest"
 DEFAULT_PAGER = "less"
 
+def get_workdir():
+    return os.environ.get(envar.WORKDIR, DEFAULT_WORKDIR)
+
 def get_log_filename():
-    return os.path.join(os.environ.get(envar.WORKDIR, DEFAULT_WORKDIR),
-                        "log")
+    return os.path.join(get_workdir(), "log")
+
+def get_error_filename():
+    return os.path.join(get_workdir(), "error")
 
 EPILOGUE = \
 """
@@ -150,6 +161,25 @@ def maybe_spawn_pager(options, log_filename):
 
 def is_pdb_on(options):
     return not options.quiet and options.pdb
+
+def write_error_test_specs(result):
+    filename = get_error_filename()
+    mkdir_p(os.path.dirname(filename))
+    with open(filename, "w") as stream:
+        for test_spec in result.error_test_specs:
+            stream.write(test_spec)
+            stream.write("\n")
+
+def load_error_test_specs():
+    filename = get_error_filename()
+    try:
+        s = set()
+        with open(filename) as stream:
+            for line in stream:
+                s.add(line.strip())
+        return s
+    except FileNotFoundError:
+        return set()
 
 def build_cli():
     class RawDescriptionWithArgumentDefaultsHelpFormatter(
@@ -329,6 +359,7 @@ def main(argv):
             return 2
         finally:
             if result is not None:
+                write_error_test_specs(result)
                 result.close_log_file()
     if result.wasSuccessful():
         return 0

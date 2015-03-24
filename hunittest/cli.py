@@ -65,9 +65,13 @@ def complete_arg(arg, completer):
 EPILOGUE = \
 """
 Exit code:
-0 - test suite was successful
-1 - test suite was not successful
-2 - an internal error happened.
+ 0 - test suite was successful
+ 1 - test suite was not successful
+ 2 - an internal error happened.
+
+Environment variables:
+ PAGER - the pager to use (see --pager)
+ HUNITTEST_LOG_FILE - name of the file where error are logged
 
 Copyright (c) 2015, Nicolas Desprès
 All rights reserved.

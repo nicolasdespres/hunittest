@@ -132,6 +132,11 @@ def maybe_spawn_pager(options, log_filename):
         raise ValueError("invalid pager option: {}".format(options.pager))
 
 def build_cli():
+    class RawDescriptionWithArgumentDefaultsHelpFormatter(
+            argparse.ArgumentDefaultsHelpFormatter,
+            argparse.RawDescriptionHelpFormatter,
+    ):
+        """Mix both formatter."""
     def top_level_directory_param(param_str):
         top_level_directory = param_str
         for preproc in (os.path.expanduser,
@@ -150,7 +155,7 @@ def build_cli():
     parser = argparse.ArgumentParser(
         description=__doc__,
         epilog=dedent(EPILOG),
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        formatter_class=RawDescriptionWithArgumentDefaultsHelpFormatter)
     parser.add_argument(
         "-v", "--verbose",
         action="store_true",

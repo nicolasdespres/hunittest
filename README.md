@@ -22,7 +22,10 @@ It does not add or change anything on the API side of the `unittest` module.
 * Filter rules system.
 * Time individual tests
 * ImportError are properly reported while collecting test spec.
-* Coverage support if you install [coverage](https://pypi.python.org/pypi/coverage/4.0a5).
+* Coverage support if you install
+  [coverage](https://pypi.python.org/pypi/coverage/4.0a5).
+* Automatically pop-up a page with the error message if any (see
+  `--pager` options).
 * Tested with Python 3.4.x
 
 # Installation

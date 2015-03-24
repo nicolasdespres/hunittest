@@ -1,2 +1,5 @@
 # TAGS for Emacs.
 /TAGS
+
+# hunittest files
+/.hunittest.log

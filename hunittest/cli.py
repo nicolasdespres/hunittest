@@ -12,6 +12,7 @@ from textwrap import dedent
 import subprocess
 from contextlib import contextmanager
 import re
+import shutil
 
 from hunittest.line_printer import LinePrinter
 from hunittest.unittestresultlib import HTestResult
@@ -23,6 +24,7 @@ from hunittest.collectlib import collect_all
 from hunittest.completionlib import test_spec_completer
 from hunittest.collectlib import setup_top_level_directory
 from hunittest.collectlib import get_test_spec_last_pkg
+from hunittest.utils import AutoEnum
 
 try:
     import argcomplete
@@ -110,6 +112,25 @@ def coverage_instrument(options):
             cov.html_report(directory=options.coverage_html,
                             omit=get_coverage_omit_list(options))
 
+class PagerMode(AutoEnum):
+    auto = ()
+    never = ()
+
+def spawn_pager(filename):
+    pager = os.environ.get("PAGER", "less")
+    executable = shutil.which(pager)
+    os.execvp(executable, [pager, filename])
+
+def maybe_spawn_pager(options, log_filename):
+    if options.quiet:
+        return
+    if options.pager is PagerMode.auto:
+        spawn_pager(log_filename)
+    elif options.pager is PagerMode.never:
+        pass
+    else:
+        raise ValueError("invalid pager option: {}".format(options.pager))
+
 def build_cli():
     def top_level_directory_param(param_str):
         top_level_directory = param_str
@@ -123,6 +144,9 @@ def build_cli():
                                              .format(param_str))
         assert os.path.isabs(top_level_directory)
         return top_level_directory
+    def pager_param(param_str):
+        # Cannot raise AttributeError since the choices is limited by argparse.
+        return getattr(PagerMode, param_str)
     parser = argparse.ArgumentParser(
         description=__doc__,
         epilog=dedent(EPILOG),
@@ -197,6 +221,13 @@ def build_cli():
         action="store",
         help=coverage_html_help)
     parser.add_argument(
+        "--pager",
+        type=pager_param,
+        action="store",
+        choices=[pm.name for pm in PagerMode],
+        default=PagerMode.auto.name,
+        help="Automatically pipe the result to a pager.")
+    parser.add_argument(
         "--version",
         action="store_true",
         help="Print version information and exit")
@@ -225,6 +256,13 @@ def main(argv):
     if not test_specs:
         test_specs = list(get_current_packages())
     isatty = False if options.verbose else None
+    if options.pager is PagerMode.auto:
+        log_filename = os.environ.get("HUNITTEST_LOG_FILE", ".hunittest.log")
+    elif options.pager is PagerMode.never:
+        log_filename = None
+    else:
+        raise ValueError("invalid pager option: {!r}".format(options.pager))
+    result = None
     with LinePrinter(isatty=isatty, quiet=options.quiet,
                      color_mode=options.color) as printer:
         try:
@@ -237,15 +275,25 @@ def main(argv):
             test_suite = unittest.defaultTestLoader \
                                  .loadTestsFromNames(test_names)
             result = HTestResult(printer, len(test_names),
-                                 failfast=options.failfast)
+                                 failfast=options.failfast,
+                                 log_filename=log_filename)
             with coverage_instrument(options):
                 test_suite.run(result)
             result.print_summary()
             printer.new_line()
-            return 0 if result.wasSuccessful() else 1
         except Exception as e:
             printer.write_exception()
             return 2
+        finally:
+            if result is not None:
+                result.close_log_file()
+    if result.wasSuccessful():
+        return 0
+    else:
+        maybe_spawn_pager(options, log_filename)
+        # maybe_spawn_pager may never return if the pager has been
+        # spawned. Otherwise we return 1.
+        return 1
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))

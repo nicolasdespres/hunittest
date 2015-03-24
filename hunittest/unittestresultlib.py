@@ -21,6 +21,62 @@ def failfast_decorator(method):
         return method(self, *args, **kw)
     return inner
 
+class _LogLinePrinter(object):
+    """Proxy over a LinePrinter.
+
+    This proxy offers some more methods starting by "log_" allowing to
+    also log the printed message to a file.
+    """
+
+    def __init__(self, printer, filename=None):
+        self._printer = printer
+        self._filename = filename
+        self._file = None
+        if self._filename is not None:
+            self._file = open(filename, "w")
+
+    def close(self):
+        if self._file is not None:
+            self._file.close()
+            self._file = None
+
+    def __del__(self):
+        self.close()
+
+    @property
+    def term_info(self):
+        return self._printer.term_info
+
+    def overwrite_message(self, *args, **kwargs):
+        return self._printer.overwrite_message(*args, **kwargs)
+
+    def overwrite(self, line):
+        return self._printer.overwrite(line)
+
+    def overwrite_nl(self, *args, **kwargs):
+        return self._printer.overwrite_nl(*args, **kwargs)
+
+    def write_nl(self, *args, **kwargs):
+        return self._printer.write_nl(*args, **kwargs)
+
+    def log_overwrite(self, line):
+        self.overwrite(line)
+        self._log(line)
+
+    def log_overwrite_nl(self, msg):
+        self.overwrite_nl(msg)
+        self._log(msg)
+
+    def log_write_nl(self, msg):
+        self.write_nl(msg)
+        self._log(msg)
+
+    def _log(self, msg):
+        if self._file is None:
+            return
+        self._file.write(msg)
+        self._file.write("\n")
+
 class HTestResult(object):
 
     ALL_STATUS = "success failure error skip expected_failure "\
@@ -30,11 +86,12 @@ class HTestResult(object):
     def status_counter_name(status):
         return "_{}_count".format(status)
 
-    def __init__(self, printer, total_tests, failfast=False):
+    def __init__(self, printer, total_tests, failfast=False,
+                 log_filename=None):
         self._failfast = failfast
         self._tests_run = 0
         self._should_stop = False
-        self._printer = printer
+        self._printer = _LogLinePrinter(printer, log_filename)
         self._total_tests = total_tests
         for status in self.ALL_STATUS:
             self._set_status_counter(status, 0)
@@ -177,22 +234,22 @@ class HTestResult(object):
                                                         aligned=False),
                     fullname=self.full_test_name(test))
         self._hbar_len = len(strip_ansi_escape(msg))
-        self._printer.overwrite_nl("-" * self._hbar_len)
-        self._printer.overwrite_nl(msg)
-        self._printer.write_nl("-" * self._hbar_len)
+        self._printer.log_overwrite_nl("-" * self._hbar_len)
+        self._printer.log_overwrite_nl(msg)
+        self._printer.log_write_nl("-" * self._hbar_len)
         all_lines = traceback.format_exception(*err)
         for i in range(len(all_lines)-1):
             lines = all_lines[i]
             for line in lines.splitlines():
-                self._printer.write_nl(line)
+                self._printer.log_write_nl(line)
         err_lines = str(err[1]).splitlines()
-        self._printer.write_nl(self.status_color(test_status) \
-                               + err[0].__name__ \
-                               + self.RESET \
-                               + ": " \
-                               + err_lines[0])
+        self._printer.log_write_nl(self.status_color(test_status) \
+                                   + err[0].__name__ \
+                                   + self.RESET \
+                                   + ": " \
+                                   + err_lines[0])
         for i in range(1, len(err_lines)):
-            self._printer.write_nl(err_lines[i])
+            self._printer.log_write_nl(err_lines[i])
 
     def _print_reason(self, test, test_status, reason):
         msg = "{test_status}: {fullname}: {reason}"\
@@ -200,7 +257,7 @@ class HTestResult(object):
                                                         aligned=False),
                     fullname=self.full_test_name(test),
                     reason=reason)
-        self._printer.overwrite_nl(msg)
+        self._printer.log_overwrite_nl(msg)
 
     def _print_io(self, test, output, channel):
         if not output:
@@ -307,7 +364,7 @@ class HTestResult(object):
             total_time=self._stopwatch.total_split_time,
             mean_split_time=self._stopwatch.mean_split_time,
             **counters)
-        self._printer.overwrite(msg)
+        self._printer.log_overwrite(msg)
 
     def stop(self):
         self._should_stop = True
@@ -317,3 +374,10 @@ class HTestResult(object):
             == self.error_count \
             == self.unexpected_success_count \
             == 0
+
+    def close_log_file(self):
+        self._printer.close()
+
+    @property
+    def log_filename(self):
+        return self._printer.filename

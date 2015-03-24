@@ -168,7 +168,6 @@ class HTestResult(object):
         return self._error_count
 
     def full_test_name(self, test):
-        # pprint(dir(test))
         return ".".join((
             test.__module__,
             type(test).__name__,

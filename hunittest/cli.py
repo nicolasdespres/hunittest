@@ -206,6 +206,7 @@ def build_cli():
         action="store",
         default=os.getcwd(),
         help="Top level directory of project")
+    # TODO(Nicolas Despres): Introduce a ColorMode enumeration
     parser.add_argument(
         "-C", "--color",
         action="store",

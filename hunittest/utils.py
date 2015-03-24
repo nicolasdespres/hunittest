@@ -35,3 +35,9 @@ class AutoEnum(Enum):
         obj = object.__new__(cls)
         obj._value_ = value
         return obj
+
+def mkdir_p(path):
+    try:
+        os.makedirs(path)
+    except FileExistsError:
+        pass

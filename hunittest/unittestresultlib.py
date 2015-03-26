@@ -276,9 +276,9 @@ class HTestResult(object):
         msg = "-" * start
         msg += chanstr
         msg += "-" * start
-        self._printer.write_nl(msg)
+        self._printer.log_write_nl(msg)
         for line in output.splitlines():
-            self._printer.write_nl(line)
+            self._printer.log_write_nl(line)
 
     def _print_ios(self, test, stdout_value, stderr_value):
         if test._outcome is None or test._outcome.success:
@@ -286,7 +286,7 @@ class HTestResult(object):
         self._print_io(test, stdout_value, "stdout")
         self._print_io(test, stderr_value, "stderr")
         if stdout_value or stderr_value:
-            self._printer.write_nl("-" * self._hbar_len)
+            self._printer.log_write_nl("-" * self._hbar_len)
 
     def startTest(self, test):
         self._tests_run += 1

@@ -153,6 +153,8 @@ def maybe_spawn_pager(options, log_filename):
     if options.quiet:
         return
     if options.pager is PagerMode.auto:
+        assert os.path.exists(log_filename)
+        assert os.path.getsize(log_filename) > 0
         spawn_pager(log_filename)
     elif options.pager is PagerMode.never:
         pass
@@ -328,13 +330,8 @@ def main(argv):
     if not test_specs:
         test_specs = list(get_current_packages())
     isatty = False if options.verbose else None
-    if options.pager is PagerMode.auto:
-        log_filename = get_log_filename()
-    elif options.pager is PagerMode.never:
-        log_filename = None
-    else:
-        raise ValueError("invalid pager option: {!r}".format(options.pager))
     failfast = options.failfast or options.pdb
+    log_filename = get_log_filename()
     result = None
     with LinePrinter(isatty=isatty, quiet=options.quiet,
                      color_mode=options.color) as printer:

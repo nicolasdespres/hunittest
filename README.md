@@ -24,8 +24,10 @@ It does not add or change anything on the API side of the `unittest` module.
 * ImportError are properly reported while collecting test spec.
 * Coverage support if you install
   [coverage](https://pypi.python.org/pypi/coverage/4.0a5).
-* Automatically pop-up a page with the error message if any (see
-  `--pager` options).
+* `hunittest` write a log of all error/failures (in `.hunittest/log`)
+  so that we can review them using the pager of your choice. By
+  default, it will always popup the pager if the error log file is not
+  empty. You can control this behavior using the `--pager` option.
 * Support `--pdb` option to start debugging when the first error
   happens.
 * Run test whose last status was error or failure first.

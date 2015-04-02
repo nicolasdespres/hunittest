@@ -279,13 +279,18 @@ class HTestResult(object):
                     formatted_line = line
                 self._printer.log_write_nl(formatted_line)
         err_lines = str(err[1]).splitlines()
-        self._printer.log_write_nl(self.status_color(test_status) \
-                                   + err[0].__name__ \
-                                   + self.RESET \
-                                   + ": " \
-                                   + err_lines[0])
-        for i in range(1, len(err_lines)):
-            self._printer.log_write_nl(err_lines[i])
+        if len(err_lines) == 0:
+            self._printer.log_write_nl(self.status_color(test_status) \
+                                       + err[0].__name__ \
+                                       + self.RESET)
+        else:
+            self._printer.log_write_nl(self.status_color(test_status) \
+                                       + err[0].__name__ \
+                                       + self.RESET \
+                                       + ": " \
+                                       + err_lines[0])
+            for i in range(1, len(err_lines)):
+                self._printer.log_write_nl(err_lines[i])
 
     def _print_reason(self, test, test_status, reason):
         assert reason is not None

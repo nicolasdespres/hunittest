@@ -59,6 +59,12 @@ class Case1(unittest.TestCase):
         except RuntimeError:
             self.assertEqual("foo", "bar")
 
+    def test_assert_with_no_message(self):
+        assert False
+
+    def test_assert_with_message(self):
+        assert False, "on purpose"
+
 class Case2(unittest.TestCase):
 
     def test_success(self):

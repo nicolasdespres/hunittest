@@ -124,7 +124,8 @@ class HTestResult(object):
         self.UNEXPECTED_SUCCESS_COLOR = self._printer.term_info.fore_yellow
         self.ERROR_COLOR = self._printer.term_info.fore_magenta
         self.RESET = self._printer.term_info.reset_all
-        self.TRACE_HL = self._printer.term_info.fore_blue
+        self.TRACE_HL = self._printer.term_info.fore_white \
+                        + self._printer.term_info.bold
 
     @property
     def shouldStop(self):

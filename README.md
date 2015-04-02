@@ -31,6 +31,7 @@ It does not add or change anything on the API side of the `unittest` module.
 * Support `--pdb` option to start debugging when the first error
   happens.
 * Run test whose last status was error or failure first.
+* Highlight parts of the traceback concerning user's modules.
 * Tested with Python 3.4.x
 
 # Installation

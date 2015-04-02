@@ -8,6 +8,8 @@ import io
 import functools
 import sys
 import os
+import re
+import unittest
 
 from hunittest.line_printer import strip_ansi_escape
 from hunittest.timedeltalib import timedelta_to_hstr
@@ -63,6 +65,9 @@ class _LogLinePrinter(object):
     def write_nl(self, *args, **kwargs):
         return self._printer.write_nl(*args, **kwargs)
 
+    def write(self, string):
+        return self._printer.write(string)
+
     def log_overwrite(self, line):
         self.overwrite(line)
         self._log(line)
@@ -75,11 +80,16 @@ class _LogLinePrinter(object):
         self.write_nl(msg)
         self._log(msg)
 
-    def _log(self, msg):
+    def log_write(self, msg):
+        self.write(msg)
+        self._log(msg, False)
+
+    def _log(self, msg, nl=True):
         if self._file is None:
             return
         self._file.write(msg)
-        self._file.write("\n")
+        if nl:
+            self._file.write("\n")
 
 class HTestResult(object):
 
@@ -114,6 +124,7 @@ class HTestResult(object):
         self.UNEXPECTED_SUCCESS_COLOR = self._printer.term_info.fore_yellow
         self.ERROR_COLOR = self._printer.term_info.fore_magenta
         self.RESET = self._printer.term_info.reset_all
+        self.TRACE_HL = self._printer.term_info.fore_blue
 
     @property
     def shouldStop(self):
@@ -232,6 +243,18 @@ class HTestResult(object):
         if reason is not None:
             self._print_reason(test, test_status, reason)
 
+    def _extract_filename_from_error_line(self, line):
+        mo = re.match(r'^\s+File "(.*)", line \d+, in .*$', line,
+                      re.MULTILINE)
+        if mo:
+            return mo.group(1)
+
+    def _is_user_filename(self, line):
+        filename = self._extract_filename_from_error_line(line)
+        if filename is None:
+            return None
+        return not filename.startswith(os.path.dirname(unittest.__file__))
+
     def _print_error(self, test, test_status, err):
         assert err is not None
         full_test_name = self.full_test_name(test)
@@ -247,8 +270,13 @@ class HTestResult(object):
         all_lines = traceback.format_exception(*err)
         for i in range(len(all_lines)-1):
             lines = all_lines[i]
+            is_user_filename = self._is_user_filename(lines)
             for line in lines.splitlines():
-                self._printer.log_write_nl(line)
+                if is_user_filename:
+                    formatted_line = self.TRACE_HL + line + self.RESET
+                else:
+                    formatted_line = line
+                self._printer.log_write_nl(formatted_line)
         err_lines = str(err[1]).splitlines()
         self._printer.log_write_nl(self.status_color(test_status) \
                                    + err[0].__name__ \

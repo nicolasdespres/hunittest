@@ -20,7 +20,7 @@ python3 -m hunittest.cli hunittest.test
 ## To test the CLI
 
 ```sh
-PYTHONPATH=. ./bin/hunittest test_samples
+PYTHONPATH=. ./bin/hunittest hunittest.test_samples
 ```
 
 ## Debugging completion

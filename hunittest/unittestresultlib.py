@@ -93,7 +93,7 @@ class _LogLinePrinter(object):
 
 class HTestResult(object):
 
-    ALL_STATUS = "success fail error skip xfail "\
+    ALL_STATUS = "pass fail error skip xfail "\
                  "xpass".split()
 
     @staticmethod
@@ -117,7 +117,7 @@ class HTestResult(object):
         self._hbar_len = None
         self._last_traceback = None
         self._error_test_specs = []
-        self.SUCCESS_COLOR = self._printer.term_info.fore_green
+        self.PASS_COLOR = self._printer.term_info.fore_green
         self.FAIL_COLOR = self._printer.term_info.fore_red
         self.SKIP_COLOR = self._printer.term_info.fore_blue
         self.XFAIL_COLOR = self._printer.term_info.fore_cyan
@@ -157,8 +157,8 @@ class HTestResult(object):
         return self._tests_run / self._total_tests
 
     @property
-    def success_count(self):
-        return self._success_count
+    def pass_count(self):
+        return self._pass_count
 
     @property
     def fail_count(self):
@@ -359,7 +359,7 @@ class HTestResult(object):
 
     def addSuccess(self, test):
         # print("addSuccess", repr(test))
-        self._print_message(test, "success")
+        self._print_message(test, "pass")
 
     @failfast_decorator
     def addFailure(self, test, err):
@@ -383,7 +383,7 @@ class HTestResult(object):
 
     def _format_run_status(self):
         if self.wasSuccessful():
-            color = self.SUCCESS_COLOR
+            color = self.PASS_COLOR
         else:
             color = self.FAIL_COLOR
         return color + "Run" + self.RESET

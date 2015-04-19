@@ -94,6 +94,7 @@ class _LogLinePrinter(object):
 class HTestResult(object):
 
     ALL_STATUS = "pass fail error skip xfail xpass".split()
+    _STATUS_MAXLEN = max(len(s) for s in ALL_STATUS)
 
     @staticmethod
     def status_counter_name(status):
@@ -202,7 +203,7 @@ class HTestResult(object):
     def format_test_status(self, status, aligned=True):
         msg = status.upper()
         if aligned:
-            formatter = "{:^8}"
+            formatter = "{{:^{:d}}}".format(self._STATUS_MAXLEN)
         else:
             formatter = "{}"
         return self.status_color(status) \

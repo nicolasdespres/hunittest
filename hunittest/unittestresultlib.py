@@ -93,8 +93,7 @@ class _LogLinePrinter(object):
 
 class HTestResult(object):
 
-    ALL_STATUS = "pass fail error skip xfail "\
-                 "xpass".split()
+    ALL_STATUS = "pass fail error skip xfail xpass".split()
 
     @staticmethod
     def status_counter_name(status):

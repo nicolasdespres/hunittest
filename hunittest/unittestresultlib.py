@@ -94,7 +94,7 @@ class _LogLinePrinter(object):
 class HTestResult(object):
 
     ALL_STATUS = "success failure error skip xfail "\
-                 "unexpected_success".split()
+                 "xpass".split()
 
     @staticmethod
     def status_counter_name(status):
@@ -121,7 +121,7 @@ class HTestResult(object):
         self.FAILURE_COLOR = self._printer.term_info.fore_red
         self.SKIP_COLOR = self._printer.term_info.fore_blue
         self.XFAIL_COLOR = self._printer.term_info.fore_cyan
-        self.UNEXPECTED_SUCCESS_COLOR = self._printer.term_info.fore_yellow
+        self.XPASS_COLOR = self._printer.term_info.fore_yellow
         self.ERROR_COLOR = self._printer.term_info.fore_magenta
         self.RESET = self._printer.term_info.reset_all
         self.TRACE_HL = self._printer.term_info.fore_white \
@@ -173,8 +173,8 @@ class HTestResult(object):
         return self._xfail_count
 
     @property
-    def unexpected_success_count(self):
-        return self._unexpected_success_count
+    def xpass_count(self):
+        return self._xpass_count
 
     @property
     def error_count(self):
@@ -201,8 +201,8 @@ class HTestResult(object):
         self._set_status_counter(status, v+inc)
 
     def format_test_status(self, status, aligned=True):
-        if status == "unexpected_success":
-            msg = "~SUCCESS"
+        if status == "xpass":
+            msg = "XPASS"
         elif status == "xfail":
             msg = "XFAIL"
         else:
@@ -379,7 +379,7 @@ class HTestResult(object):
 
     @failfast_decorator
     def addUnexpectedSuccess(self, test, err=None):
-        self._print_message(test, "unexpected_success")
+        self._print_message(test, "xpass")
 
     def _format_run_status(self):
         if self.wasSuccessful():
@@ -414,7 +414,7 @@ class HTestResult(object):
     def wasSuccessful(self):
         return self.failure_count \
             == self.error_count \
-            == self.unexpected_success_count \
+            == self.xpass_count \
             == 0
 
     def close_log_file(self):

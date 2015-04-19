@@ -93,7 +93,7 @@ class _LogLinePrinter(object):
 
 class HTestResult(object):
 
-    ALL_STATUS = "success failure error skip expected_failure "\
+    ALL_STATUS = "success failure error skip xfail "\
                  "unexpected_success".split()
 
     @staticmethod
@@ -120,7 +120,7 @@ class HTestResult(object):
         self.SUCCESS_COLOR = self._printer.term_info.fore_green
         self.FAILURE_COLOR = self._printer.term_info.fore_red
         self.SKIP_COLOR = self._printer.term_info.fore_blue
-        self.EXPECTED_FAILURE_COLOR = self._printer.term_info.fore_cyan
+        self.XFAIL_COLOR = self._printer.term_info.fore_cyan
         self.UNEXPECTED_SUCCESS_COLOR = self._printer.term_info.fore_yellow
         self.ERROR_COLOR = self._printer.term_info.fore_magenta
         self.RESET = self._printer.term_info.reset_all
@@ -169,8 +169,8 @@ class HTestResult(object):
         return self._skip_count
 
     @property
-    def expected_failure_count(self):
-        return self._expected_failure_count
+    def xfail_count(self):
+        return self._xfail_count
 
     @property
     def unexpected_success_count(self):
@@ -203,8 +203,8 @@ class HTestResult(object):
     def format_test_status(self, status, aligned=True):
         if status == "unexpected_success":
             msg = "~SUCCESS"
-        elif status == "expected_failure":
-            msg = "~FAILURE"
+        elif status == "xfail":
+            msg = "XFAIL"
         else:
             msg = status.upper()
         if aligned:
@@ -375,7 +375,7 @@ class HTestResult(object):
         self._print_message(test, "skip", reason=reason)
 
     def addExpectedFailure(self, test, err):
-        self._print_message(test, "expected_failure")
+        self._print_message(test, "xfail")
 
     @failfast_decorator
     def addUnexpectedSuccess(self, test, err=None):

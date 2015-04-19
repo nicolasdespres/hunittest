@@ -200,12 +200,7 @@ class HTestResult(object):
         self._set_status_counter(status, v+inc)
 
     def format_test_status(self, status, aligned=True):
-        if status == "xpass":
-            msg = "XPASS"
-        elif status == "xfail":
-            msg = "XFAIL"
-        else:
-            msg = status.upper()
+        msg = status.upper()
         if aligned:
             formatter = "{:^8}"
         else:

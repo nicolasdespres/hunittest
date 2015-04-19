@@ -93,8 +93,8 @@ class _LogLinePrinter(object):
 
 class HTestResult(object):
 
-    ALL_STATUS = "success failure error skip expected_failure "\
-                 "unexpected_success".split()
+    ALL_STATUS = "pass fail error skip xfail xpass".split()
+    _STATUS_MAXLEN = max(len(s) for s in ALL_STATUS)
 
     @staticmethod
     def status_counter_name(status):
@@ -117,11 +117,11 @@ class HTestResult(object):
         self._hbar_len = None
         self._last_traceback = None
         self._error_test_specs = []
-        self.SUCCESS_COLOR = self._printer.term_info.fore_green
-        self.FAILURE_COLOR = self._printer.term_info.fore_red
+        self.PASS_COLOR = self._printer.term_info.fore_green
+        self.FAIL_COLOR = self._printer.term_info.fore_red
         self.SKIP_COLOR = self._printer.term_info.fore_blue
-        self.EXPECTED_FAILURE_COLOR = self._printer.term_info.fore_cyan
-        self.UNEXPECTED_SUCCESS_COLOR = self._printer.term_info.fore_yellow
+        self.XFAIL_COLOR = self._printer.term_info.fore_cyan
+        self.XPASS_COLOR = self._printer.term_info.fore_yellow
         self.ERROR_COLOR = self._printer.term_info.fore_magenta
         self.RESET = self._printer.term_info.reset_all
         self.TRACE_HL = self._printer.term_info.fore_white \
@@ -157,24 +157,24 @@ class HTestResult(object):
         return self._tests_run / self._total_tests
 
     @property
-    def success_count(self):
-        return self._success_count
+    def pass_count(self):
+        return self._pass_count
 
     @property
-    def failure_count(self):
-        return self._failure_count
+    def fail_count(self):
+        return self._fail_count
 
     @property
     def skip_count(self):
         return self._skip_count
 
     @property
-    def expected_failure_count(self):
-        return self._expected_failure_count
+    def xfail_count(self):
+        return self._xfail_count
 
     @property
-    def unexpected_success_count(self):
-        return self._unexpected_success_count
+    def xpass_count(self):
+        return self._xpass_count
 
     @property
     def error_count(self):
@@ -201,14 +201,9 @@ class HTestResult(object):
         self._set_status_counter(status, v+inc)
 
     def format_test_status(self, status, aligned=True):
-        if status == "unexpected_success":
-            msg = "~SUCCESS"
-        elif status == "expected_failure":
-            msg = "~FAILURE"
-        else:
-            msg = status.upper()
+        msg = status.upper()
         if aligned:
-            formatter = "{:^8}"
+            formatter = "{{:^{:d}}}".format(self._STATUS_MAXLEN)
         else:
             formatter = "{}"
         return self.status_color(status) \
@@ -359,12 +354,12 @@ class HTestResult(object):
 
     def addSuccess(self, test):
         # print("addSuccess", repr(test))
-        self._print_message(test, "success")
+        self._print_message(test, "pass")
 
     @failfast_decorator
     def addFailure(self, test, err):
         # print("addFailure", repr(test), repr(err))
-        self._print_message(test, "failure", err=err)
+        self._print_message(test, "fail", err=err)
 
     @failfast_decorator
     def addError(self, test, err):
@@ -375,17 +370,17 @@ class HTestResult(object):
         self._print_message(test, "skip", reason=reason)
 
     def addExpectedFailure(self, test, err):
-        self._print_message(test, "expected_failure")
+        self._print_message(test, "xfail")
 
     @failfast_decorator
     def addUnexpectedSuccess(self, test, err=None):
-        self._print_message(test, "unexpected_success")
+        self._print_message(test, "xpass")
 
     def _format_run_status(self):
         if self.wasSuccessful():
-            color = self.SUCCESS_COLOR
+            color = self.PASS_COLOR
         else:
-            color = self.FAILURE_COLOR
+            color = self.FAIL_COLOR
         return color + "Run" + self.RESET
 
     def print_summary(self):
@@ -412,9 +407,9 @@ class HTestResult(object):
         self._should_stop = True
 
     def wasSuccessful(self):
-        return self.failure_count \
+        return self.fail_count \
             == self.error_count \
-            == self.unexpected_success_count \
+            == self.xpass_count \
             == 0
 
     def close_log_file(self):

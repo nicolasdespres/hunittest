@@ -1,6 +1,6 @@
 # Introduction
 
-Detail basic command to know when developing trip.
+Detail basic command to know when hacking `hunittest`.
 All commands must be executed from the root of the repository.
 
 ## Test suite

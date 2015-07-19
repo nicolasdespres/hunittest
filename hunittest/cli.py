@@ -318,7 +318,7 @@ def build_cli():
     arg = parser.add_argument(
         "test_specs",
         action="store",
-        nargs=argparse.REMAINDER,
+        nargs='*',
         default=None,
         help="Test directory/module/TestCase/test_method.")
     complete_arg(arg, test_spec_completer)

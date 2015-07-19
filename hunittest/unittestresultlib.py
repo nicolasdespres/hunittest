@@ -119,6 +119,7 @@ class HTestResult(object):
         self._hbar_len = None
         self._last_traceback = None
         self._error_test_specs = []
+        self._succeed_test_specs = []
         self.PASS_COLOR = self._printer.term_info.fore_green
         self.FAIL_COLOR = self._printer.term_info.fore_red
         self.SKIP_COLOR = self._printer.term_info.fore_blue
@@ -237,7 +238,10 @@ class HTestResult(object):
         self._inc_status_counter(test_status)
         self._printer.overwrite_message(prefix, full_test_name,
                                         suffix, ellipse_index=1)
-        if err is not None:
+        if err is None:
+            self._succeed_test_specs.append(full_test_name)
+        else:
+            self._error_test_specs.append(full_test_name)
             self._print_error(test, test_status, err)
         if reason is not None:
             self._print_reason(test, test_status, reason)
@@ -257,7 +261,6 @@ class HTestResult(object):
     def _print_error(self, test, test_status, err):
         assert err is not None
         full_test_name = self.full_test_name(test)
-        self._error_test_specs.append(full_test_name)
         msg = "{test_status}: {fullname}"\
             .format(test_status=self.format_test_status(test_status,
                                                         aligned=False),
@@ -431,3 +434,7 @@ class HTestResult(object):
     @property
     def error_test_specs(self):
         return self._error_test_specs
+
+    @property
+    def succeed_test_specs(self):
+        return self._succeed_test_specs

@@ -166,14 +166,22 @@ def is_pdb_on(options):
 
 def write_error_test_specs(result):
     filename = get_error_filename()
+    # We load the previous erroneous test specs, we add the new one
+    # and remove the one that succeeded.
+    error_test_specs = load_error_test_specs_from(filename)
+    error_test_specs |= set(result.error_test_specs)
+    error_test_specs -= set(result.succeed_test_specs)
     mkdir_p(os.path.dirname(filename))
     with open(filename, "w") as stream:
-        for test_spec in result.error_test_specs:
+        for test_spec in sorted(error_test_specs):
             stream.write(test_spec)
             stream.write("\n")
 
 def load_error_test_specs():
     filename = get_error_filename()
+    return load_error_test_specs_from(filename)
+
+def load_error_test_specs_from(filename):
     try:
         s = set()
         with open(filename) as stream:

@@ -73,5 +73,9 @@ def as_timeunit(obj):
                         .format(type(obj).__name__))
 
 def timedelta_to_unit(tdelta, unit):
+    """Convert timedelta *tdelta* to the given *unit*.
+
+    Return a float.
+    """
     timeunit = as_timeunit(unit)
     return tdelta / timeunit.value

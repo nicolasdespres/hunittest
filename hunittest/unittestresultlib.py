@@ -233,9 +233,10 @@ class HTestResult(object):
             **counters)
         suffix = suffix_formatter.format(
             elapsed=timedelta_to_hstr(self._stopwatch.last_split_time))
-        msg = self.full_test_name(test)
+        full_test_name = self.full_test_name(test)
         self._inc_status_counter(test_status)
-        self._printer.overwrite_message(prefix, msg, suffix, ellipse_index=1)
+        self._printer.overwrite_message(prefix, full_test_name,
+                                        suffix, ellipse_index=1)
         if err is not None:
             self._print_error(test, test_status, err)
         if reason is not None:

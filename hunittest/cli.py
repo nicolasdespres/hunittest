@@ -376,5 +376,8 @@ def main(argv):
             # spawned. Otherwise we return 1.
         return 1
 
-if __name__ == "__main__":
+def sys_main():
     sys.exit(main(sys.argv))
+
+if __name__ == "__main__":
+    sys_main()

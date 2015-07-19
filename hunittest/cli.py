@@ -23,6 +23,7 @@ from hunittest.filter_rules import PatternType
 from hunittest.filter_rules import FilterRules
 from hunittest.collectlib import collect_all
 from hunittest.completionlib import test_spec_completer
+from hunittest.completionlib import list_packages_from
 from hunittest.collectlib import setup_top_level_directory
 from hunittest.collectlib import get_test_spec_last_pkg
 from hunittest.utils import AutoEnum
@@ -341,9 +342,7 @@ def main(argv):
         filter_rules = FilterRules()
     test_specs = options.test_specs
     if not test_specs:
-        # FIXME(Nicolas Despres): get_current_packages has been replaced
-        #  by list_packages_from() in completionlib module.
-        test_specs = list(get_current_packages())
+        test_specs = list(list_packages_from(top_level_directory))
     isatty = False if options.verbose else None
     failfast = options.failfast or options.pdb
     log_filename = get_log_filename()

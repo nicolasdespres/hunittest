@@ -392,6 +392,16 @@ class HTestResult(object):
         return color + "Run" + self.RESET
 
     def print_summary(self):
+        ### Print main summary
+        formatter = "{run_status} {total_count} tests in "\
+                    "{total_time} (avg: {mean_split_time})"
+        msg = formatter.format(
+            run_status=self._format_run_status(),
+            total_count=self._total_tests,
+            total_time=timedelta_to_hstr(self._stopwatch.total_split_time),
+            mean_split_time=timedelta_to_hstr(self._stopwatch.mean_split_time))
+        self._printer.log_overwrite_nl(msg)
+        ### Print detailed summary
         counters = {}
         counter_formats = []
         for status in self.ALL_STATUS:
@@ -401,17 +411,8 @@ class HTestResult(object):
                                    + str(count) \
                                    + self.RESET
                 counter_formats.append("{{{s}}} {s}".format(s=status))
-
-        formatter = "{run_status} {total_count} tests in "\
-                    "{total_time} (avg: {mean_split_time}): "
-        formatter += " ".join(counter_formats)
-        msg = formatter.format(
-            run_status=self._format_run_status(),
-            total_count=self._total_tests,
-            total_time=timedelta_to_hstr(self._stopwatch.total_split_time),
-            mean_split_time=timedelta_to_hstr(self._stopwatch.mean_split_time),
-            **counters)
-        self._printer.log_overwrite(msg)
+        msg = " ".join(counter_formats).format(**counters)
+        self._printer.log_write_nl(msg)
 
     def stop(self):
         self._should_stop = True

@@ -132,7 +132,7 @@ class TermInfo(object):
         except:
             return False
         else:
-            return os.isatty(fileno)
+            return os.isatty(fileno) and os.environ["TERM"] != "dumb"
 
     def _init_hardcoded_colors(self):
         for i, cname in enumerate(ANSI_COLOR_NAMES):

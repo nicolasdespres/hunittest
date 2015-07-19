@@ -406,8 +406,8 @@ class HTestResult(object):
         msg = formatter.format(
             run_status=self._format_run_status(),
             total_count=self._total_tests,
-            total_time=self._stopwatch.total_split_time,
-            mean_split_time=self._stopwatch.mean_split_time,
+            total_time=timedelta_to_hstr(self._stopwatch.total_split_time),
+            mean_split_time=timedelta_to_hstr(self._stopwatch.mean_split_time),
             **counters)
         self._printer.log_overwrite(msg)
 

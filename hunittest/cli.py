@@ -338,6 +338,8 @@ def main(argv):
         filter_rules = FilterRules()
     test_specs = options.test_specs
     if not test_specs:
+        # FIXME(Nicolas Despres): get_current_packages has been replaced
+        #  by list_packages_from() in completionlib module.
         test_specs = list(get_current_packages())
     isatty = False if options.verbose else None
     failfast = options.failfast or options.pdb

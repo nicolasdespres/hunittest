@@ -100,13 +100,15 @@ class HTestResult(object):
     def status_counter_name(status):
         return "_{}_count".format(status)
 
-    def __init__(self, printer, total_tests, failfast=False,
+    def __init__(self, printer, total_tests, top_level_directory,
+                 failfast=False,
                  log_filename=None):
         self._failfast = failfast
         self._tests_run = 0
         self._should_stop = False
         self._printer = _LogLinePrinter(printer, log_filename)
         self._total_tests = total_tests
+        self._top_level_directory = top_level_directory
         for status in self.ALL_STATUS:
             self._set_status_counter(status, 0)
         self._stopwatch = StopWatch()
@@ -249,7 +251,7 @@ class HTestResult(object):
         filename = self._extract_filename_from_error_line(line)
         if filename is None:
             return None
-        return not filename.startswith(os.path.dirname(unittest.__file__))
+        return filename.startswith(self._top_level_directory)
 
     def _print_error(self, test, test_status, err):
         assert err is not None
@@ -263,6 +265,7 @@ class HTestResult(object):
         self._printer.log_overwrite_nl("-" * self._hbar_len)
         self._printer.log_overwrite_nl(msg)
         self._printer.log_write_nl("-" * self._hbar_len)
+        ### Print exception traceback
         all_lines = traceback.format_exception(*err)
         for i in range(len(all_lines)-1):
             lines = all_lines[i]
@@ -273,6 +276,7 @@ class HTestResult(object):
                 else:
                     formatted_line = line
                 self._printer.log_write_nl(formatted_line)
+        ### Print exception message
         err_lines = str(err[1]).splitlines()
         if len(err_lines) == 0:
             self._printer.log_write_nl(self.status_color(test_status) \

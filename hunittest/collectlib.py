@@ -190,6 +190,7 @@ def setup_top_level_directory(top_level_directory=None):
         top_level_directory = os.getcwd()
     _check_top_level_directory(top_level_directory)
     sys.path.insert(0, top_level_directory)
+    return top_level_directory
 
 def get_test_spec_last_pkg(test_spec):
     last_pkg = None

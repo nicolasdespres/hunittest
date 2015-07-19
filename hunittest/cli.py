@@ -322,7 +322,7 @@ def main(argv):
     if options.version:
         print(get_version())
         return 0
-    setup_top_level_directory(options.top_level_directory)
+    top_level_directory = setup_top_level_directory(options.top_level_directory)
     filter_rules = options.filter_rules
     if filter_rules is None:
         filter_rules = FilterRules()
@@ -338,7 +338,7 @@ def main(argv):
         try:
             test_names = reported_collect(printer, test_specs, options.pattern,
                                           filter_rules,
-                                          options.top_level_directory)
+                                          top_level_directory)
             if options.collect_only:
                 printer.new_line()
                 return 0
@@ -346,7 +346,8 @@ def main(argv):
                                  .loadTestsFromNames(test_names)
             result = HTestResult(printer, len(test_names),
                                  failfast=failfast,
-                                 log_filename=log_filename)
+                                 log_filename=log_filename,
+                                 top_level_directory=top_level_directory)
             with coverage_instrument(options):
                 test_suite.run(result)
             result.print_summary()

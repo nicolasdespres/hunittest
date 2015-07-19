@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+# PYTHON_ARGCOMPLETE_OK
 """Highlighted unittest command line interface.
 """
 

@@ -44,19 +44,12 @@ def build_test_name(test_module, test_case=None, test_method=None):
     return pyname_join(map(transform, l))
 
 def collect_all_test_modules(package, pattern):
-    directory = os.path.realpath(os.path.dirname(package.__file__))
     # We cannot use the finder to load the module because it mess up unittest.
     # Using import_module() is fine.
-    for finder, name, ispkg in pkgutil.walk_packages(path=[directory]):
-        if ispkg:
-            fullname = pyname_join((package.__name__, name))
-            mod = import_module(fullname)
-            yield from collect_all_test_modules(mod, pattern)
-        else:
-            if re.match(pattern, name):
-                fullname = pyname_join((package.__name__, name))
-                mod = import_module(fullname)
-                yield mod
+    for _, name, ispkg in pkgutil.walk_packages(package.__path__,
+                                                package.__name__+'.'):
+        if not ispkg and re.match(pattern, re.sub(r"^.*\.", "", name)):
+            yield import_module(name)
 
 class TestSpecType(Enum):
     package = 1

@@ -16,19 +16,25 @@ def strip_decimal(v):
         return int(v)
 
 def timedelta_to_hstr(tdelta):
-    if tdelta < timedelta(microseconds=1e3):
-        return "{:d}us".format(tdelta.microseconds)
-    elif tdelta < timedelta(microseconds=1e6):
-        return "{}ms".format(strip_decimal(tdelta.microseconds / 1e3))
-    elif tdelta < timedelta(minutes=1):
-        return "{}s".format(tdelta.seconds)
-    else:
-        return str(tdelta)
+    """A prettier string version of a timedelta.
 
+    Print units for each part (weeks, days, hours, etc...) and skip them
+    when they are zero.
+    """
+    result = []
+    r = tdelta
+    for u in reversed(TimeUnit):
+        q, r = divmod(r, u.value)
+        if q != 0:
+            result.append("{:d}{}".format(q, u.abbrev))
+    if result:
+        return " ".join(result)
+    else:
+        return "0" + TimeUnit.microsecond.abbrev
 
 @enum.unique
 class TimeUnit(enum.Enum):
-    microsecond = timedelta(microseconds=0)
+    microsecond = timedelta(microseconds=1)
     millisecond = timedelta(microseconds=1e3)
     second = timedelta(seconds=1)
     minute = timedelta(minutes=1)

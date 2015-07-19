@@ -327,6 +327,9 @@ def build_cli():
 def main(argv):
     cli = build_cli()
     if ARGCOMPLETE_ENABLED:
+        # It is tempting to set a validator that always return True so that
+        # we could return the list of sub-modules without their full path
+        # but unfortunately it does not work.
         argcomplete.autocomplete(cli)
     options = cli.parse_args(argv[1:])
     if options.version:

@@ -7,6 +7,7 @@
 import os
 import pkgutil
 import re
+from importlib import import_module
 
 from hunittest.utils import pyname_join
 from hunittest.utils import is_pkgdir
@@ -18,6 +19,41 @@ from hunittest.collectlib import collect_test_cases
 from hunittest.collectlib import collect_test_names
 from hunittest.collectlib import setup_top_level_directory
 
+# Set this to True to enable logging. Useful for debugging.
+LOGGER_ENABLED = False
+if LOGGER_ENABLED:
+    import logging
+    logging.basicConfig(
+        filename=os.path.join(os.path.dirname(__file__), "completionlib.log"),
+        level=logging.DEBUG,
+        filemode='a',
+    )
+    LOGGER = logging.getLogger(__name__)
+else:
+    class DummyLogger(object):
+        def debug(self, *args, **kwargs):
+            pass
+        def info(self, *args, **kwargs):
+            pass
+        def warning(self, *args, **kwargs):
+            pass
+        def error(self, *args, **kwargs):
+            pass
+        def critical(self, *args, **kwargs):
+            pass
+    LOGGER = DummyLogger()
+
+LOGGER.info("Start logging ================================")
+
+try:
+    import argcomplete
+except ImportError:
+    def warn(*args):
+        return LOGGER.warning(*args)
+else:
+    def warn(*args):
+        argcomplete.warn(*args)
+        LOGGER.warning(*args)
 
 def list_packages_from(dirpath):
     """Yields all packages directly available from *dirpath*."""
@@ -55,7 +91,12 @@ def argcomplete_modules(package, pattern, prefix):
             continue
         if ispkg or re.match(pattern, name):
             fullname = pyname_join((package.__name__, name))
-            yield fullname
+            try:
+                import_module(fullname)
+            except:
+                warn("failed to load module {!r}".format(fullname))
+            else:
+                yield fullname
 
 def argcomplete_test_cases(module, prefix):
     for test_case in collect_test_cases(module):
@@ -79,29 +120,37 @@ def gen_test_spec_completion(prefix, parsed_args):
     else:
         test_spec = spec[:-1]
         rest = spec[-1]
-        tst, obj = get_test_spec_type(test_spec,
-                                      parsed_args.top_level_directory)
-        if tst is TestSpecType.package:
-            yield from argcomplete_modules(obj, parsed_args.pattern, rest)
-        elif tst is TestSpecType.module:
-            yield from argcomplete_test_cases(obj, rest)
-        elif tst is TestSpecType.test_case:
-            yield from argcomplete_test_methods(obj, rest)
-        elif tst is TestSpecType.test_method:
-            pass # nothing to complete
+        LOGGER.debug("TEST SPEC: '%s'", test_spec)
+        try:
+            tst, obj = get_test_spec_type(test_spec,
+                                          parsed_args.top_level_directory)
+        except:
+            warn("failed to load test spec {!r} (prefix={!r})"
+                 .format(pyname_join(test_spec), prefix))
         else:
-            raise RuntimeError("unsupported test spec type: {}"
-                               .format(tst))
+            if tst is TestSpecType.package:
+                yield from argcomplete_modules(obj, parsed_args.pattern, rest)
+            elif tst is TestSpecType.module:
+                yield from argcomplete_test_cases(obj, rest)
+            elif tst is TestSpecType.test_case:
+                yield from argcomplete_test_methods(obj, rest)
+            elif tst is TestSpecType.test_method:
+                pass # nothing to complete
+            else:
+                raise RuntimeError("unsupported test spec type: {}"
+                                   .format(tst))
 
 def with_next_completion(completion, parsed_args):
-    yield completion
     next_completion = completion + "."
     next_completions = gen_test_spec_completion(next_completion, parsed_args)
     if not is_empty_generator(next_completions):
+        LOGGER.debug("YIELD '%s' AND '%s'", completion, next_completion)
+        yield completion
         yield next_completion
 
 def test_spec_completer(prefix, parsed_args, **kwargs):
+    LOGGER.debug("TEST_SPEC_COMPLETER prefix='%s' kwargs=%r", prefix, kwargs)
     setup_top_level_directory(parsed_args.top_level_directory)
     completions = gen_test_spec_completion(prefix, parsed_args)
-    for n, completion in enumerate(completions):
+    for completion in completions:
         yield from with_next_completion(completion, parsed_args)

@@ -89,6 +89,9 @@ regular python module.
     $ hunittest myproject.test
     $ python3 -m hunittest.cli myproject.test
 
+Note that when using the later form, the shell completion won't work but you
+can specify the specific interpreter you want to use.
+
 Known bugs
 ==========
 

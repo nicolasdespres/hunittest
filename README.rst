@@ -19,8 +19,9 @@ Features
 ========
 
 * Work with any unittest test suite
-* One line progress status output (inspired by ninja_). Thus, buffering of stdout/stderr
-  is always on (no ``-b/--buffer`` option like in usual unittest_ driver).
+* One line progress status output (inspired by ninja_). Thus,
+  buffering of stdout/stderr is always on (no ``-b/--buffer`` option
+  like in usual unittest_ driver).
 * No mandatory dependencies.
 * Fancy color if your terminal support it.
 * Convenient shell completion if you install argcomplete_.
@@ -30,8 +31,10 @@ Features
   tells you whether the test suite was successful.
 * ``-t/--top-level-directory`` option just like unittest_.
 * Filter rules system.
-* Time individual tests
-* ImportError are properly reported while collecting test spec.
+* Time individual tests.
+* ImportError are properly reported while collecting test spec (i.e.
+  you see the exception raised while importing the module instead of
+  an uninformative exception coming from unittest loading system)
 * Coverage support if you install coverage_.
 * |hunittest| write a log of all error/failures (in ``.hunittest/log``)
   so that we can review them using the pager of your choice. By

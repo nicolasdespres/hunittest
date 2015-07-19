@@ -149,13 +149,14 @@ def spawn_pager(filename):
     executable = shutil.which(pager)
     os.execvp(executable, [pager, filename])
 
-def maybe_spawn_pager(options, log_filename):
+def maybe_spawn_pager(options, log_filename, isatty=True):
     if options.quiet:
         return
     if options.pager is PagerMode.auto:
-        assert os.path.exists(log_filename)
-        assert os.path.getsize(log_filename) > 0
-        spawn_pager(log_filename)
+        if isatty:
+            assert os.path.exists(log_filename)
+            assert os.path.getsize(log_filename) > 0
+            spawn_pager(log_filename)
     elif options.pager is PagerMode.never:
         pass
     else:
@@ -380,7 +381,7 @@ def main(argv):
                 import pdb
                 pdb.post_mortem(result.last_traceback)
         else:
-            maybe_spawn_pager(options, log_filename)
+            maybe_spawn_pager(options, log_filename, printer.isatty)
             # maybe_spawn_pager may never return if the pager has been
             # spawned. Otherwise we return 1.
         return 1

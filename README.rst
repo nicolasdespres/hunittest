@@ -44,6 +44,8 @@ Features
   happens.
 * Run test whose last status was error or failure first.
 * Highlight parts of the traceback concerning user's modules.
+* Report detailed test status delta between two runs. Useful to see
+  how many tests we have fixed/broke with your change.
 * Tested with Python 3.4.x
 
 Installation

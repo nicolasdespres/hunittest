@@ -10,6 +10,7 @@ import sys
 import os
 import re
 import unittest
+import json
 
 from hunittest.line_printer import strip_ansi_escape
 from hunittest.timedeltalib import timedelta_to_hstr
@@ -102,13 +103,15 @@ class HTestResult(object):
 
     def __init__(self, printer, total_tests, top_level_directory,
                  failfast=False,
-                 log_filename=None):
+                 log_filename=None,
+                 status_filename=None):
         self._failfast = failfast
         self._tests_run = 0
         self._should_stop = False
         self._printer = _LogLinePrinter(printer, log_filename)
         self._total_tests = total_tests
         self._top_level_directory = top_level_directory
+        self._status_filename = status_filename
         for status in self.ALL_STATUS:
             self._set_status_counter(status, 0)
         self._stopwatch = StopWatch()
@@ -392,6 +395,7 @@ class HTestResult(object):
         return color + "Run" + self.RESET
 
     def print_summary(self):
+        prev_counters = self._load_status()
         ### Print main summary
         formatter = "{run_status} {total_count} tests in "\
                     "{total_time} (avg: {mean_split_time})"
@@ -406,13 +410,20 @@ class HTestResult(object):
         counter_formats = []
         for status in self.ALL_STATUS:
             count = self.get_status_counter(status)
-            if count > 0:
-                counters[status] = self.status_color(status) \
-                                   + str(count) \
-                                   + self.RESET
+            if prev_counters is None:
+                count_delta = 0
+            else:
+                count_delta = count - prev_counters[status]
+            if count > 0 or count_delta != 0:
+                s = self.status_color(status) + str(count)
+                if count_delta != 0:
+                    s += "({:+d})".format(count_delta)
+                s += self.RESET
+                counters[status] = s
                 counter_formats.append("{{{s}}} {s}".format(s=status))
         msg = " ".join(counter_formats).format(**counters)
         self._printer.log_write_nl(msg)
+        self._write_status()
 
     def stop(self):
         self._should_stop = True
@@ -441,3 +452,24 @@ class HTestResult(object):
     @property
     def succeed_test_specs(self):
         return self._succeed_test_specs
+
+    @property
+    def status_scores(self):
+        return {status:self.get_status_counter(status)
+                for status in self.ALL_STATUS}
+
+    def _write_status(self):
+        if self._status_filename is None:
+            return
+        mkdir_p(os.path.dirname(self._status_filename))
+        with open(self._status_filename, "w") as stream:
+            json.dump(self.status_scores, stream)
+
+    def _load_status(self):
+        if self._status_filename is None:
+            return
+        try:
+            with open(self._status_filename) as stream:
+                return json.load(stream)
+        except FileNotFoundError:
+            return

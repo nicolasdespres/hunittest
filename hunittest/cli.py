@@ -14,6 +14,7 @@ import subprocess
 from contextlib import contextmanager
 import re
 import shutil
+import hashlib
 
 from hunittest.line_printer import LinePrinter
 from hunittest.unittestresultlib import HTestResult
@@ -82,6 +83,15 @@ def get_log_filename():
 
 def get_error_filename():
     return os.path.join(get_workdir(), "error")
+
+def get_status_filename(options):
+    """Build status filename based on the options."""
+    m = hashlib.md5()
+    m.update(" ".join(options.test_specs).encode())
+    m.update(os.path.realpath(options.top_level_directory).encode())
+    m.update(repr(options.filter_rules).encode())
+    m.update(options.pattern.encode())
+    return os.path.join(get_workdir(), "status", m.hexdigest(), "status.json")
 
 EPILOGUE = \
 """
@@ -358,10 +368,10 @@ def main(argv):
                 return 0
             test_suite = unittest.defaultTestLoader \
                                  .loadTestsFromNames(test_names)
-            result = HTestResult(printer, len(test_names),
+            result = HTestResult(printer, len(test_names), top_level_directory,
                                  failfast=failfast,
                                  log_filename=log_filename,
-                                 top_level_directory=top_level_directory)
+                                 status_filename=get_status_filename(options))
             with coverage_instrument(options):
                 test_suite.run(result)
             result.print_summary()

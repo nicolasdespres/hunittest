@@ -169,8 +169,8 @@ def write_error_test_specs(result):
     # We load the previous erroneous test specs, we add the new one
     # and remove the one that succeeded.
     error_test_specs = load_error_test_specs_from(filename)
-    error_test_specs |= set(result.error_test_specs)
-    error_test_specs -= set(result.succeed_test_specs)
+    error_test_specs |= result.error_test_specs
+    error_test_specs -= result.succeed_test_specs
     mkdir_p(os.path.dirname(filename))
     with open(filename, "w") as stream:
         for test_spec in sorted(error_test_specs):

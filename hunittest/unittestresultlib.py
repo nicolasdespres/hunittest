@@ -395,10 +395,12 @@ class HTestResult(object):
         counters = {}
         counter_formats = []
         for status in self.ALL_STATUS:
-            counters[status] = self.status_color(status) \
-                               + str(self.get_status_counter(status)) \
-                               + self.RESET
-            counter_formats.append("{{{s}}} {s}".format(s=status))
+            count = self.get_status_counter(status)
+            if count > 0:
+                counters[status] = self.status_color(status) \
+                                   + str(count) \
+                                   + self.RESET
+                counter_formats.append("{{{s}}} {s}".format(s=status))
 
         formatter = "{run_status} {total_count} tests in "\
                     "{total_time} (avg: {mean_split_time}): "

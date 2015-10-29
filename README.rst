@@ -63,6 +63,14 @@ From source
     $ cd hunittest
     $ python3 setup.py develop
 
+To uninstall it, you ca do:
+
+.. code:: bash
+
+    $ python3 setup.py develop --uninstall
+
+However, this won't remove the easy install entry script generated.
+
 shell completion
 ----------------
 

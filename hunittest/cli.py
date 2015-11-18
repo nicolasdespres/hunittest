@@ -140,7 +140,8 @@ def get_coverage_omit_list(options):
 def coverage_instrument(options):
     cov = None
     if COVERAGE_ENABLED and options.coverage_html:
-        cov = coverage.Coverage()
+        data_file = os.path.join(options.coverage_html, "coverage.data")
+        cov = coverage.Coverage(data_file=data_file)
     try:
         if cov is not None:
             cov.start()
@@ -148,6 +149,7 @@ def coverage_instrument(options):
     finally:
         if cov is not None:
             cov.stop()
+            mkdir_p(options.coverage_html)
             cov.save()
             cov.html_report(directory=options.coverage_html,
                             omit=get_coverage_omit_list(options))
@@ -305,7 +307,7 @@ def build_cli():
         default="auto",
         help="Whether to use color.")
     if COVERAGE_ENABLED:
-        coverage_html_help = "Where to store the html report"
+        coverage_html_help = "Directory where to store the html report"
     else:
         coverage_html_help = "install 'coverage' to support enable this option"
     parser.add_argument(

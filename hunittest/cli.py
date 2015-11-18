@@ -127,9 +127,9 @@ def git_describe(cwd="."):
 def get_version():
     return git_describe(cwd=os.path.dirname(os.path.realpath(__file__)))
 
-def get_coverage_omit_list(options):
+def get_coverage_omit_list(test_names):
     l = [os.path.join(os.path.dirname(__file__), "*")] # myself
-    for test_spec in options.test_specs:
+    for test_spec in test_names:
         pkgname = get_test_spec_last_pkg(test_spec)
         path = re.subn(r"\.", "/", pkgname)[0]
         path = os.path.join(path, "*")
@@ -137,10 +137,10 @@ def get_coverage_omit_list(options):
     return l
 
 @contextmanager
-def coverage_instrument(options):
+def coverage_instrument(dir_path, test_names):
     cov = None
-    if COVERAGE_ENABLED and options.coverage_html:
-        data_file = os.path.join(options.coverage_html, "coverage.data")
+    if COVERAGE_ENABLED and dir_path:
+        data_file = os.path.join(dir_path, "coverage.data")
         cov = coverage.Coverage(data_file=data_file)
     try:
         if cov is not None:
@@ -149,10 +149,10 @@ def coverage_instrument(options):
     finally:
         if cov is not None:
             cov.stop()
-            mkdir_p(options.coverage_html)
+            mkdir_p(dir_path)
             cov.save()
-            cov.html_report(directory=options.coverage_html,
-                            omit=get_coverage_omit_list(options))
+            cov.html_report(directory=dir_path,
+                            omit=get_coverage_omit_list(test_names))
 
 class PagerMode(AutoEnum):
     auto = ()
@@ -374,7 +374,8 @@ def main(argv):
                                  failfast=failfast,
                                  log_filename=log_filename,
                                  status_filename=get_status_filename(options))
-            with coverage_instrument(options):
+            with coverage_instrument(options.coverage_html,
+                                     test_names):
                 test_suite.run(result)
             result.print_summary()
             printer.new_line()

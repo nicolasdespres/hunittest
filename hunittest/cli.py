@@ -142,9 +142,9 @@ def coverage_instrument(dir_path, test_names):
     if COVERAGE_ENABLED and dir_path:
         data_file = os.path.join(dir_path, "coverage.data")
         cov = coverage.Coverage(data_file=data_file)
+    if cov is not None:
+        cov.start()
     try:
-        if cov is not None:
-            cov.start()
         yield
     finally:
         if cov is not None:

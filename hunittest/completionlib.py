@@ -121,7 +121,7 @@ def gen_test_spec_completion(prefix, parsed_args):
     else:
         test_spec = spec[:-1]
         rest = spec[-1]
-        LOGGER.debug("TEST SPEC: '%s'", test_spec)
+        LOGGER.debug("TEST SPEC: %s", test_spec)
         try:
             tst, obj = get_test_spec_type(test_spec,
                                           parsed_args.top_level_directory)

@@ -111,6 +111,7 @@ def argcomplete_test_methods(test_case, prefix):
             yield pyname_join((test_case.__module__,
                                test_case.__name__,
                                name))
+
 def gen_test_spec_completion(prefix, parsed_args):
     spec = prefix.split(".")
     assert len(spec) > 0

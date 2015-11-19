@@ -151,7 +151,10 @@ def with_next_completion(completion, parsed_args):
 
 def test_spec_completer(prefix, parsed_args, **kwargs):
     LOGGER.debug("TEST_SPEC_COMPLETER prefix='%s' kwargs=%r", prefix, kwargs)
-    setup_top_level_directory(parsed_args.top_level_directory)
-    completions = gen_test_spec_completion(prefix, parsed_args)
-    for completion in completions:
-        yield from with_next_completion(completion, parsed_args)
+    try:
+        setup_top_level_directory(parsed_args.top_level_directory)
+        completions = gen_test_spec_completion(prefix, parsed_args)
+        for completion in completions:
+            yield from with_next_completion(completion, parsed_args)
+    except Exception as e:
+        LOGGER.exception("uncaught exception!")

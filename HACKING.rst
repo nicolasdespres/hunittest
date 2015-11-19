@@ -30,6 +30,10 @@ To test the CLI
 Debugging completion
 --------------------
 
+The logger in the `hunittest.completionlib` module can be activated by
+setting `LOGGER_ENABLED = True` at the beginning of the file. The log
+file can be found in the source tree at `hunittest/completionlib.log`.
+
 .. code:: bash
 
     PROGNAME=hunittest TEST_ARGS='test.' _ARG_DEBUG=1 COMP_LINE="$PROGNAME $TEST_ARGS" COMP_POINT=1024 _ARGCOMPLETE=1 $PROGNAME 8>&1

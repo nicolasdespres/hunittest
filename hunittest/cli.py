@@ -11,7 +11,6 @@ import operator
 import time
 from textwrap import dedent
 import subprocess
-from contextlib import contextmanager
 import re
 import shutil
 import hashlib
@@ -136,23 +135,31 @@ def get_coverage_omit_list(test_names):
         l.append(path)
     return l
 
-@contextmanager
-def coverage_instrument(dir_path, test_names):
-    cov = None
-    if COVERAGE_ENABLED and dir_path:
-        data_file = os.path.join(dir_path, "coverage.data")
-        cov = coverage.Coverage(data_file=data_file)
-    if cov is not None:
-        cov.start()
-    try:
-        yield
-    finally:
-        if cov is not None:
-            cov.stop()
-            mkdir_p(dir_path)
-            cov.save()
-            cov.html_report(directory=dir_path,
-                            omit=get_coverage_omit_list(test_names))
+class CoverageInstrument(object):
+
+    def __init__(self, dir_path):
+        self.dir_path = dir_path
+        self.cov = None
+        if COVERAGE_ENABLED and self.dir_path:
+            data_file = os.path.join(self.dir_path, "coverage.data")
+            self.cov = coverage.Coverage(data_file=data_file)
+        self.test_names = None
+
+    def __enter__(self):
+        if self.cov is not None:
+            self.cov.start()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if self.cov is not None:
+            self.cov.stop()
+            mkdir_p(self.dir_path)
+            self.cov.save()
+            kwargs = {"directory": self.dir_path}
+            if self.test_names:
+                kwargs["omit"] = get_coverage_omit_list(self.test_names)
+            self.cov.html_report(**kwargs)
+        return False # Tell to re-raise the exception if there was one.
 
 class PagerMode(AutoEnum):
     auto = ()
@@ -362,20 +369,21 @@ def main(argv):
     with LinePrinter(isatty=isatty, quiet=options.quiet,
                      color_mode=options.color) as printer:
         try:
-            test_names = reported_collect(printer, test_specs, options.pattern,
-                                          filter_rules,
-                                          top_level_directory)
-            if options.collect_only:
-                printer.new_line()
-                return 0
-            test_suite = unittest.defaultTestLoader \
-                                 .loadTestsFromNames(test_names)
-            result = HTestResult(printer, len(test_names), top_level_directory,
-                                 failfast=failfast,
-                                 log_filename=log_filename,
-                                 status_filename=get_status_filename(options))
-            with coverage_instrument(options.coverage_html,
-                                     test_names):
+            with CoverageInstrument(options.coverage_html) as cov_inst:
+                test_names = reported_collect(printer, test_specs,
+                                              options.pattern, filter_rules,
+                                              top_level_directory)
+                cov_inst.test_names = test_names
+                if options.collect_only:
+                    printer.new_line()
+                    return 0
+                test_suite = unittest.defaultTestLoader \
+                                     .loadTestsFromNames(test_names)
+                result = HTestResult(printer, len(test_names),
+                                     top_level_directory,
+                                     failfast=failfast,
+                                     log_filename=log_filename,
+                                     status_filename=get_status_filename(options))
                 test_suite.run(result)
             result.print_summary()
             printer.new_line()

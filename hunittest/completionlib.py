@@ -144,9 +144,11 @@ def gen_test_spec_completion(prefix, parsed_args):
 def with_next_completion(completion, parsed_args):
     next_completion = completion + "."
     next_completions = gen_test_spec_completion(next_completion, parsed_args)
+    LOGGER.debug("YIELD %s", completion)
+    yield completion
+    # Yield the next completion only if it will generates further completion.
     if not is_empty_generator(next_completions):
-        LOGGER.debug("YIELD '%s' AND '%s'", completion, next_completion)
-        yield completion
+        LOGGER.debug("YIELD NEXT %s", next_completion)
         yield next_completion
 
 def test_spec_completer(prefix, parsed_args, **kwargs):

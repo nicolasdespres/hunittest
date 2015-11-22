@@ -71,3 +71,12 @@ class TestStopWatch(unittest.TestCase):
         sw.start()
         with self.assertRaises(RuntimeError):
             sw.start()
+
+    def test_total_split_time_is_zero_when_not_started(self):
+        self.assertEqual(timedelta(0), StopWatch().total_split_time)
+
+    def test_mean_split_time_is_zero_when_not_started(self):
+        self.assertEqual(timedelta(0), StopWatch().mean_split_time)
+
+    def test_total_time_is_zero_when_not_started(self):
+        self.assertEqual(timedelta(0), StopWatch().total_time)

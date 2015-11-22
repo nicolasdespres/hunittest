@@ -61,13 +61,18 @@ class StopWatch(object):
 
     @property
     def total_split_time(self):
-        return self._total_split_time
+        if self.is_started:
+            return self._total_split_time
+        else:
+            return timedelta(0)
 
     @property
     def mean_split_time(self):
         """Return mean split time in microseconds."""
-        self._check_is_started()
-        return self._total_split_time / self._splits_count
+        if self.is_started:
+            return self._total_split_time / self._splits_count
+        else:
+            return timedelta(0)
 
     @property
     def last_split_time(self):
@@ -75,5 +80,7 @@ class StopWatch(object):
 
     @property
     def total_time(self):
-        self._check_is_started()
-        return datetime.utcnow() - self._started_at
+        if self.is_started:
+            return datetime.utcnow() - self._started_at
+        else:
+            return timedelta(0)

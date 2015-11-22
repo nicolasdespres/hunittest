@@ -421,8 +421,10 @@ class HTestResult(object):
                 s += self.RESET
                 counters[status] = s
                 counter_formats.append("{{{s}}} {s}".format(s=status))
-        msg = " ".join(counter_formats).format(**counters)
-        self._printer.log_write_nl(msg)
+        # Print detailed summary only if there were tests.
+        if counter_formats:
+            msg = " ".join(counter_formats).format(**counters)
+            self._printer.log_write_nl(msg)
         self._write_status()
 
     def stop(self):

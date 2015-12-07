@@ -8,6 +8,7 @@ from collections import namedtuple
 import functools
 import re
 import argparse
+import fnmatch
 
 
 class RuleOperator(Enum):

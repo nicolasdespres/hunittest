@@ -261,8 +261,7 @@ class HTestResult(object):
             return None
         return filename.startswith(self._top_level_directory)
 
-    def _print_error(self, test, test_status, err):
-        assert err is not None
+    def _print_header(self, test, test_status):
         full_test_name = self.full_test_name(test)
         msg = "{test_status}: {fullname}"\
             .format(test_status=self.format_test_status(test_status,
@@ -271,6 +270,11 @@ class HTestResult(object):
         self._hbar_len = len(strip_ansi_escape(msg))
         self._printer.log_overwrite_nl("-" * self._hbar_len)
         self._printer.log_overwrite_nl(msg)
+
+
+    def _print_error(self, test, test_status, err):
+        assert err is not None
+        self._print_header(test, test_status)
         self._printer.log_write_nl("-" * self._hbar_len)
         ### Print exception traceback
         all_lines = traceback.format_exception(*err)
@@ -321,8 +325,12 @@ class HTestResult(object):
             self._printer.log_write_nl(line)
 
     def _print_ios(self, test, stdout_value, stderr_value):
-        if test._outcome is None or test._outcome.success:
+        if not stdout_value and not stderr_value:
             return
+        if test._outcome is None or test._outcome.success:
+            # If the test pass the header was not printed yet by
+            # _print_error.
+            self._print_header(test, "pass")
         self._print_io(test, stdout_value, "stdout")
         self._print_io(test, stderr_value, "stderr")
         if stdout_value or stderr_value:

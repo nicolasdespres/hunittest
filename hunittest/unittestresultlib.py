@@ -17,6 +17,7 @@ from hunittest.timedeltalib import timedelta_to_hstr
 from hunittest.timedeltalib import timedelta_to_unit
 from hunittest.stopwatch import StopWatch
 from hunittest.utils import mkdir_p
+from hunittest.utils import safe_getcwd
 
 def failfast_decorator(method):
     @functools.wraps(method)
@@ -340,6 +341,7 @@ class HTestResult(object):
         self._tests_run += 1
         if not self._stopwatch.is_started:
             self._stopwatch.start()
+        self.old_cwd = safe_getcwd()
         self._setupStdout()
 
     def _setupStdout(self):
@@ -347,6 +349,10 @@ class HTestResult(object):
         sys.stderr = self._stderr_buffer
 
     def stopTest(self, test):
+        new_cwd = safe_getcwd()
+        if self.old_cwd is None or new_cwd is None \
+           or self.old_cwd != new_cwd:
+            raise RuntimeError("working directory changed during test")
         stdout_value = self._stdout_buffer.getvalue()
         stderr_value = self._stderr_buffer.getvalue()
         self._restoreStdout()

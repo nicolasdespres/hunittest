@@ -52,3 +52,9 @@ def protect_cwd(dirpath=None):
         yield
     finally:
         os.chdir(saved_cwd)
+
+def safe_getcwd():
+    try:
+        return os.getcwd()
+    except FileNotFoundError:
+        return None

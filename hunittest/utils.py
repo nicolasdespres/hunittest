@@ -6,6 +6,7 @@
 import os
 import re
 from enum import Enum
+from contextlib import contextmanager
 
 
 def pyname_join(seq):
@@ -41,3 +42,13 @@ def mkdir_p(path):
         os.makedirs(path)
     except FileExistsError:
         pass
+
+@contextmanager
+def protect_cwd(dirpath=None):
+    saved_cwd = os.getcwd()
+    if dirpath is not None:
+        os.chdir(dirpath)
+    try:
+        yield
+    finally:
+        os.chdir(saved_cwd)

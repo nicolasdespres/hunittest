@@ -28,6 +28,7 @@ from hunittest.collectlib import setup_top_level_directory
 from hunittest.collectlib import get_test_spec_last_pkg
 from hunittest.utils import AutoEnum
 from hunittest.utils import mkdir_p
+from hunittest.utils import protect_cwd
 from hunittest import envar
 
 try:
@@ -384,7 +385,8 @@ def main(argv):
                                      failfast=failfast,
                                      log_filename=log_filename,
                                      status_filename=get_status_filename(options))
-                test_suite.run(result)
+                with protect_cwd():
+                    test_suite.run(result)
             result.print_summary()
             printer.new_line()
         except Exception as e:

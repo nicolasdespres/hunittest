@@ -314,6 +314,12 @@ def build_cli():
         choices=("auto", "always", "never"),
         default="auto",
         help="Whether to use color.")
+    # TODO(Nicolas Despres): Find a better name for this option.
+    parser.add_argument(
+        "--strip-unittest-traceback",
+        action="store_true",
+        default=False,
+        help="Strip unittest part of exception traceback.")
     if COVERAGE_ENABLED:
         coverage_html_help = "Directory where to store the html report"
     else:
@@ -384,7 +390,8 @@ def main(argv):
                                      top_level_directory,
                                      failfast=failfast,
                                      log_filename=log_filename,
-                                     status_filename=get_status_filename(options))
+                                     status_filename=get_status_filename(options),
+                                     strip_unittest_traceback=options.strip_unittest_traceback)
                 with protect_cwd():
                     test_suite.run(result)
             result.print_summary()

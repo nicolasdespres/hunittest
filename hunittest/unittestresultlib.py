@@ -105,7 +105,8 @@ class HTestResult(object):
     def __init__(self, printer, total_tests, top_level_directory,
                  failfast=False,
                  log_filename=None,
-                 status_filename=None):
+                 status_filename=None,
+                 strip_unittest_traceback=False):
         self._failfast = failfast
         self._tests_run = 0
         self._should_stop = False
@@ -113,6 +114,7 @@ class HTestResult(object):
         self._total_tests = total_tests
         self._top_level_directory = top_level_directory
         self._status_filename = status_filename
+        self._strip_unittest_traceback=strip_unittest_traceback
         for status in self.ALL_STATUS:
             self._set_status_counter(status, 0)
         self._stopwatch = StopWatch()
@@ -262,6 +264,12 @@ class HTestResult(object):
             return None
         return filename.startswith(self._top_level_directory)
 
+    def _is_unittest_filename(self, line):
+        filename = self._extract_filename_from_error_line(line)
+        if filename is None:
+            return None
+        return filename.startswith(os.path.dirname(unittest.__file__))
+
     def _print_header(self, test, test_status):
         full_test_name = self.full_test_name(test)
         msg = "{test_status}: {fullname}"\
@@ -282,12 +290,21 @@ class HTestResult(object):
         for i in range(len(all_lines)-1):
             lines = all_lines[i]
             is_user_filename = self._is_user_filename(lines)
+            skip_next = False
             for line in lines.splitlines():
+                if skip_next:
+                    continue
                 if is_user_filename:
                     formatted_line = self.TRACE_HL + line + self.RESET
                 else:
-                    formatted_line = line
-                self._printer.log_write_nl(formatted_line)
+                    if self._strip_unittest_traceback \
+                       and self._is_unittest_filename(line):
+                        skip_next = True
+                        formatted_line = None
+                    else:
+                        formatted_line = line
+                if formatted_line is not None:
+                    self._printer.log_write_nl(formatted_line)
         ### Print exception message
         err_lines = str(err[1]).splitlines()
         if len(err_lines) == 0:

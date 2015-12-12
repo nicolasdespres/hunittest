@@ -106,7 +106,8 @@ class HTestResult(object):
                  failfast=False,
                  log_filename=None,
                  status_filename=None,
-                 strip_unittest_traceback=False):
+                 strip_unittest_traceback=False,
+                 show_progress=True):
         self._failfast = failfast
         self._tests_run = 0
         self._should_stop = False
@@ -115,6 +116,7 @@ class HTestResult(object):
         self._top_level_directory = top_level_directory
         self._status_filename = status_filename
         self._strip_unittest_traceback=strip_unittest_traceback
+        self._show_progress = show_progress
         for status in self.ALL_STATUS:
             self._set_status_counter(status, 0)
         self._stopwatch = StopWatch()
@@ -219,8 +221,7 @@ class HTestResult(object):
             + formatter.format(msg) \
             + self.RESET
 
-    def _print_message(self, test, test_status, err=None, reason=None):
-        self._stopwatch.split()
+    def _print_progress_message(self, full_test_name, test_status):
         counters = {}
         counter_formats = []
         for status in self.ALL_STATUS:
@@ -240,10 +241,15 @@ class HTestResult(object):
             **counters)
         suffix = suffix_formatter.format(
             elapsed=timedelta_to_hstr(self._stopwatch.last_split_time))
-        full_test_name = self.full_test_name(test)
-        self._inc_status_counter(test_status)
         self._printer.overwrite_message(prefix, full_test_name,
                                         suffix, ellipse_index=1)
+
+    def _print_message(self, test, test_status, err=None, reason=None):
+        self._stopwatch.split()
+        self._inc_status_counter(test_status)
+        full_test_name = self.full_test_name(test)
+        if self._show_progress:
+            self._print_progress_message(full_test_name, test_status)
         if err is None:
             self._succeed_test_specs.add(full_test_name)
         else:

@@ -48,15 +48,17 @@ else:
     COVERAGE_ENABLED = True
 
 def reported_collect(printer, test_specs, pattern, filter_rules,
-                     top_level_directory):
-    printer.overwrite("Loading previous errors...")
+                     top_level_directory, progress=True):
+    if progress:
+        printer.overwrite("Loading previous errors...")
     previous_errors = load_error_test_specs()
     collection = collect_all(test_specs, pattern, top_level_directory)
     test_names = []
     for n, test_name in enumerate(filter_rules(collection)):
-        prefix = "collecting {:d}: ".format(n+1)
-        msg = test_name
-        printer.overwrite_message(prefix, msg, ellipse_index=1)
+        if progress:
+            prefix = "collecting {:d}: ".format(n+1)
+            msg = test_name
+            printer.overwrite_message(prefix, msg, ellipse_index=1)
         if test_name in previous_errors:
             test_names.insert(0, test_name)
         else:
@@ -320,6 +322,11 @@ def build_cli():
         action="store_true",
         default=False,
         help="Strip unittest part of exception traceback.")
+    parser.add_argument(
+        "--no-progress",
+        action="store_true",
+        default=False,
+        help="Do not show progress while running test.")
     if COVERAGE_ENABLED:
         coverage_html_help = "Directory where to store the html report"
     else:
@@ -379,7 +386,8 @@ def main(argv):
             with CoverageInstrument(options.coverage_html) as cov_inst:
                 test_names = reported_collect(printer, test_specs,
                                               options.pattern, filter_rules,
-                                              top_level_directory)
+                                              top_level_directory,
+                                              progress=not options.no_progress)
                 cov_inst.test_names = test_names
                 if options.collect_only:
                     printer.new_line()
@@ -391,7 +399,8 @@ def main(argv):
                                      failfast=failfast,
                                      log_filename=log_filename,
                                      status_filename=get_status_filename(options),
-                                     strip_unittest_traceback=options.strip_unittest_traceback)
+                                     strip_unittest_traceback=options.strip_unittest_traceback,
+                                     show_progress=not options.no_progress)
                 with protect_cwd():
                     test_suite.run(result)
             result.print_summary()

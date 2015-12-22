@@ -96,7 +96,7 @@ class _LogLinePrinter(object):
 class HTestResult(object):
 
     ALL_STATUS = "pass fail error skip xfail xpass".split()
-    _STATUS_MAXLEN = max(len(s) for s in ALL_STATUS)
+    _STATUS_MAXLEN = max(len(s) for s in ALL_STATUS+["running"])
 
     @staticmethod
     def status_counter_name(status):
@@ -134,6 +134,7 @@ class HTestResult(object):
         self.XFAIL_COLOR = self._printer.term_info.fore_cyan
         self.XPASS_COLOR = self._printer.term_info.fore_yellow
         self.ERROR_COLOR = self._printer.term_info.fore_magenta
+        self.RUNNING_COLOR = self._printer.term_info.fore_white
         self.RESET = self._printer.term_info.reset_all
         self.TRACE_HL = self._printer.term_info.fore_white \
                         + self._printer.term_info.bold
@@ -239,14 +240,20 @@ class HTestResult(object):
             mean_split_time=timedelta_to_unit(self._stopwatch.mean_split_time,
                                               "ms"),
             **counters)
-        suffix = suffix_formatter.format(
-            elapsed=timedelta_to_hstr(self._stopwatch.last_split_time))
+        if self._stopwatch.last_split_time is not None:
+            suffix = suffix_formatter.format(
+                elapsed=timedelta_to_hstr(self._stopwatch.last_split_time))
+        else:
+            suffix = ""
         self._printer.overwrite_message(prefix, full_test_name,
                                         suffix, ellipse_index=1)
 
-    def _print_message(self, test, test_status, err=None, reason=None):
+    def _print_outcome_message(self, test, test_status, err=None, reason=None):
         self._stopwatch.split()
         self._inc_status_counter(test_status)
+        self._print_message(test, test_status, err=err, reason=reason)
+
+    def _print_message(self, test, test_status, err=None, reason=None):
         full_test_name = self.full_test_name(test)
         if self._show_progress:
             self._print_progress_message(full_test_name, test_status)
@@ -364,6 +371,7 @@ class HTestResult(object):
         self._tests_run += 1
         if not self._stopwatch.is_started:
             self._stopwatch.start()
+        self._print_message(test, "running")
         self.old_cwd = safe_getcwd()
         self._setupStdout()
 
@@ -402,27 +410,27 @@ class HTestResult(object):
 
     def addSuccess(self, test):
         # print("addSuccess", repr(test))
-        self._print_message(test, "pass")
+        self._print_outcome_message(test, "pass")
 
     @failfast_decorator
     def addFailure(self, test, err):
         # print("addFailure", repr(test), repr(err))
-        self._print_message(test, "fail", err=err)
+        self._print_outcome_message(test, "fail", err=err)
 
     @failfast_decorator
     def addError(self, test, err):
         # print("addError", repr(test), repr(err))
-        self._print_message(test, "error", err=err)
+        self._print_outcome_message(test, "error", err=err)
 
     def addSkip(self, test, reason):
-        self._print_message(test, "skip", reason=reason)
+        self._print_outcome_message(test, "skip", reason=reason)
 
     def addExpectedFailure(self, test, err):
-        self._print_message(test, "xfail")
+        self._print_outcome_message(test, "xfail")
 
     @failfast_decorator
     def addUnexpectedSuccess(self, test, err=None):
-        self._print_message(test, "xpass")
+        self._print_outcome_message(test, "xpass")
 
     def _format_run_status(self):
         if self.wasSuccessful():

@@ -69,7 +69,7 @@ class StopWatch(object):
     @property
     def mean_split_time(self):
         """Return mean split time in microseconds."""
-        if self.is_started:
+        if self.is_started and self._total_split_time is not None:
             return self._total_split_time / self._splits_count
         else:
             return timedelta(0)

@@ -240,7 +240,8 @@ class HTestResult(object):
             mean_split_time=timedelta_to_unit(self._stopwatch.mean_split_time,
                                               "ms"),
             **counters)
-        if self._stopwatch.last_split_time is not None:
+        if test_status != "running" \
+           and self._stopwatch.last_split_time is not None:
             suffix = suffix_formatter.format(
                 elapsed=timedelta_to_hstr(self._stopwatch.last_split_time))
         else:

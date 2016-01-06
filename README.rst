@@ -55,8 +55,8 @@ Installation
 It requires Python 3.4.x at the moment. And you can install colorama_ and
 argcomplete_ (using ``pip3``) if you really want to enjoy it all.
 
-From source
------------
+Directly from the source
+------------------------
 
 .. code:: bash
 

@@ -6,7 +6,7 @@ Welcome to hunittest
 .. |hunittest| replace:: *Hunittest*
 .. External links
 .. _unittest: https://docs.python.org/3/library/unittest.html
-.. _ninja: https://github.com/martine/ninja
+.. _ninja: https://github.com/ninja-build/ninja
 .. _argcomplete: https://pypi.python.org/pypi/argcomplete
 .. _coverage: https://pypi.python.org/pypi/coverage/4.0a5
 .. _colorama: https://pypi.python.org/pypi/colorama/0.3.3

@@ -125,7 +125,7 @@ See `HACKING <HACKING.rst>`_ for details.
 License
 =======
 
-*hunittest* is released under the term of the
+|hunittest| is released under the term of the
 `Simplified BSD License <http://choosealicense.com/licenses/bsd-2-clause>`_.
 Copyright (c) 2015, Nicolas Desprès
 All rights reserved.

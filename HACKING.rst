@@ -37,3 +37,16 @@ file can be found in the source tree at `hunittest/completionlib.log`.
 .. code:: bash
 
     PROGNAME=hunittest TEST_ARGS='test.' _ARG_DEBUG=1 COMP_LINE="$PROGNAME $TEST_ARGS" COMP_POINT=1024 _ARGCOMPLETE=1 $PROGNAME 8>&1
+
+Test doc files (README, HACKING, ...) rendering
+-----------------------------------------------
+
+See the reference documentation for
+`reStructuredText directives
+<http://docutils.sourceforge.net/docs/ref/rst/directives.html>`_
+if you need to update those files.
+
+.. code:: bash
+
+    pip install docutils pygments
+    rst2html.py README.rst README.html

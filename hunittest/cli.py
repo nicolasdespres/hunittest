@@ -392,8 +392,6 @@ def main(argv):
                 if options.collect_only:
                     printer.new_line()
                     return 0
-                test_suite = unittest.defaultTestLoader \
-                                     .loadTestsFromNames(test_names)
                 result = HTestResult(printer, len(test_names),
                                      top_level_directory,
                                      failfast=failfast,
@@ -402,7 +400,10 @@ def main(argv):
                                      strip_unittest_traceback=options.strip_unittest_traceback,
                                      show_progress=not options.no_progress)
                 with protect_cwd():
-                    test_suite.run(result)
+                    for test_name in test_names:
+                        test_case = unittest.defaultTestLoader \
+                                            .loadTestsFromName(test_name)
+                        test_case.run(result)
             result.print_summary()
             printer.new_line()
         except Exception as e:

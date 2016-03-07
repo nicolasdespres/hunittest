@@ -93,6 +93,17 @@ class _LogLinePrinter(object):
         if nl:
             self._file.write("\n")
 
+def _full_test_name(test):
+    """Return the full name of the given test object.
+
+    A string of the form: pkg.mod.Class.test_method
+    """
+    return ".".join((
+        test.__module__,
+        type(test).__name__,
+        test._testMethodName,
+    ))
+
 class HTestResult(object):
 
     ALL_STATUS = "pass fail error skip xfail xpass".split()
@@ -192,13 +203,6 @@ class HTestResult(object):
     def error_count(self):
         return self._error_count
 
-    def full_test_name(self, test):
-        return ".".join((
-            test.__module__,
-            type(test).__name__,
-            test._testMethodName,
-        ))
-
     def status_color(self, status):
         return getattr(self, "{}_COLOR".format(status.upper()))
 
@@ -255,7 +259,7 @@ class HTestResult(object):
         self._print_message(test, test_status, err=err, reason=reason)
 
     def _print_message(self, test, test_status, err=None, reason=None):
-        full_test_name = self.full_test_name(test)
+        full_test_name = _full_test_name(test)
         if self._show_progress:
             self._print_progress_message(full_test_name, test_status)
         if err is None:
@@ -285,7 +289,7 @@ class HTestResult(object):
         return filename.startswith(os.path.dirname(unittest.__file__))
 
     def _print_header(self, test, test_status):
-        full_test_name = self.full_test_name(test)
+        full_test_name = _full_test_name(test)
         msg = "{test_status}: {fullname}"\
             .format(test_status=self.format_test_status(test_status,
                                                         aligned=False),
@@ -339,7 +343,7 @@ class HTestResult(object):
         msg = "{test_status}: {fullname}: {reason}"\
             .format(test_status=self.format_test_status(test_status,
                                                         aligned=False),
-                    fullname=self.full_test_name(test),
+                    fullname=_full_test_name(test),
                     reason=reason)
         self._printer.log_overwrite_nl(msg)
 

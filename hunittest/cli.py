@@ -17,6 +17,7 @@ import hashlib
 
 from hunittest.line_printer import LinePrinter
 from hunittest.unittestresultlib import HTestResult
+from hunittest.unittestresultlib import StatusDB
 from hunittest.filter_rules import RuleOperator
 from hunittest.filter_rules import FilterAction
 from hunittest.filter_rules import PatternType
@@ -379,6 +380,7 @@ def main(argv):
     isatty = False if options.verbose else None
     failfast = options.failfast or options.pdb
     log_filename = get_log_filename()
+    status_db = StatusDB(get_status_filename(options))
     result = None
     with LinePrinter(isatty=isatty, quiet=options.quiet,
                      color_mode=options.color) as printer:
@@ -396,7 +398,7 @@ def main(argv):
                                      top_level_directory,
                                      failfast=failfast,
                                      log_filename=log_filename,
-                                     status_filename=get_status_filename(options),
+                                     status_db=status_db,
                                      strip_unittest_traceback=options.strip_unittest_traceback,
                                      show_progress=not options.no_progress)
                 with protect_cwd():

@@ -104,6 +104,34 @@ def _full_test_name(test):
         test._testMethodName,
     ))
 
+class StatusDB:
+    """A tiny DB to store status counters.
+
+    Status counters are the number of test falling in each category: pass, fail,
+    error, xpass, etc...
+
+    It is used to show the difference between to similar run.
+    """
+
+    def __init__(self, filename):
+        self.filename = filename
+
+    def save(self, status_scores):
+        if self.filename is None:
+            return
+        mkdir_p(os.path.dirname(self.filename))
+        with open(self.filename, "w") as stream:
+            json.dump(status_scores, stream)
+
+    def load(self):
+        if self.filename is None:
+            return
+        try:
+            with open(self.filename) as stream:
+                return json.load(stream)
+        except FileNotFoundError:
+            return
+
 class HTestResult(object):
 
     ALL_STATUS = "pass fail error skip xfail xpass".split()
@@ -116,7 +144,7 @@ class HTestResult(object):
     def __init__(self, printer, total_tests, top_level_directory,
                  failfast=False,
                  log_filename=None,
-                 status_filename=None,
+                 status_db=None,
                  strip_unittest_traceback=False,
                  show_progress=True):
         self._failfast = failfast
@@ -125,7 +153,7 @@ class HTestResult(object):
         self._printer = _LogLinePrinter(printer, log_filename)
         self._total_tests = total_tests
         self._top_level_directory = top_level_directory
-        self._status_filename = status_filename
+        self._status_db = status_db
         self._strip_unittest_traceback=strip_unittest_traceback
         self._show_progress = show_progress
         for status in self.ALL_STATUS:
@@ -513,17 +541,7 @@ class HTestResult(object):
                 for status in self.ALL_STATUS}
 
     def _write_status(self):
-        if self._status_filename is None:
-            return
-        mkdir_p(os.path.dirname(self._status_filename))
-        with open(self._status_filename, "w") as stream:
-            json.dump(self.status_scores, stream)
+        return self._status_db.save(self.status_scores)
 
     def _load_status(self):
-        if self._status_filename is None:
-            return
-        try:
-            with open(self._status_filename) as stream:
-                return json.load(stream)
-        except FileNotFoundError:
-            return
+        return self._status_db.load()

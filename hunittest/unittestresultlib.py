@@ -256,16 +256,18 @@ class HTestResult(object):
     def _print_outcome_message(self, test, test_status, err=None, reason=None):
         self._stopwatch.split()
         self._inc_status_counter(test_status)
+        full_test_name = _full_test_name(test)
+        if err is None:
+            self._succeed_test_specs.add(full_test_name)
+        else:
+            self._error_test_specs.add(full_test_name)
         self._print_message(test, test_status, err=err, reason=reason)
 
     def _print_message(self, test, test_status, err=None, reason=None):
         full_test_name = _full_test_name(test)
         if self._show_progress:
             self._print_progress_message(full_test_name, test_status)
-        if err is None:
-            self._succeed_test_specs.add(full_test_name)
-        else:
-            self._error_test_specs.add(full_test_name)
+        if err is not None:
             self._print_error(test, test_status, err)
         if reason is not None:
             self._print_reason(test, test_status, reason)

@@ -143,10 +143,14 @@ class Status(Enum):
     SKIP = "skip"
     XFAIL = "xfail"
     XPASS = "xpass"
+    RUNNING = "running"
 
     @classmethod
-    def all(cls):
-        return [x.value for x in cls]
+    def stopped(cls):
+        """Yield all status representing a stopped test."""
+        for status in cls:
+            if status is not cls.RUNNING:
+                yield status
 
 class StatusCounters:
     """Hold test counters for each possible status.
@@ -154,10 +158,10 @@ class StatusCounters:
 
     @staticmethod
     def name(status):
-        return "{}_count".format(status)
+        return "{}_count".format(status.value)
 
     def __init__(self):
-        for status in Status.all():
+        for status in Status.stopped():
             self.set(status, 0)
 
     def get(self, status):
@@ -178,7 +182,7 @@ class StatusCounters:
 
 class ResultPrinter:
 
-    _STATUS_MAXLEN = max(len(s) for s in Status.all()+["running"])
+    _STATUS_MAXLEN = max(len(s.value) for s in Status)
 
     def __init__(self, printer, top_level_directory,
                  log_filename=None,
@@ -201,10 +205,10 @@ class ResultPrinter:
                         + self._printer.term_info.bold
 
     def status_color(self, status):
-        return getattr(self, "{}_COLOR".format(status.upper()))
+        return getattr(self, "{}_COLOR".format(status.value.upper()))
 
     def format_test_status(self, status, aligned=True):
-        msg = status.upper()
+        msg = status.value.upper()
         if aligned:
             formatter = "{{:^{:d}}}".format(self._STATUS_MAXLEN)
         else:
@@ -218,11 +222,11 @@ class ResultPrinter:
                                 mean_split_time, last_split_time):
         counters = {}
         counter_formats = []
-        for status in Status.all():
-            counters[status] = self.status_color(status) \
-                               + str(status_counters.get(status)) \
-                               + self.RESET
-            counter_formats.append("{{{s}}}".format(s=status))
+        for status in Status.stopped():
+            counters[status.value] = self.status_color(status) \
+                                     + str(status_counters.get(status)) \
+                                     + self.RESET
+            counter_formats.append("{{{s}}}".format(s=status.value))
         prefix_formatter = "[{progress:>4.0%}|{mean_split_time:.2f}ms|" \
                            + "|".join(f for f in counter_formats) \
                            + "] {test_status}: "
@@ -233,7 +237,7 @@ class ResultPrinter:
             mean_split_time=timedelta_to_unit(mean_split_time,
                                               "ms"),
             **counters)
-        if test_status != "running" \
+        if test_status != Status.RUNNING \
            and last_split_time is not None:
             suffix = suffix_formatter.format(
                 elapsed=timedelta_to_hstr(last_split_time))
@@ -350,7 +354,7 @@ class ResultPrinter:
         if test._outcome is None or test._outcome.success:
             # If the test pass the header was not printed yet by
             # _print_error.
-            self._print_header(test, "pass")
+            self._print_header(test, Status.PASS)
         self._print_io(test, stdout_value, "stdout")
         self._print_io(test, stderr_value, "stderr")
         if stdout_value or stderr_value:
@@ -381,19 +385,19 @@ class ResultPrinter:
         ### Print detailed summary
         counters = {}
         counter_formats = []
-        for status in Status.all():
+        for status in Status.stopped():
             count = status_counters.get(status)
             if prev_status_counters is None:
                 count_delta = 0
             else:
-                count_delta = count - prev_status_counters[status]
+                count_delta = count - prev_status_counters[status.value]
             if count > 0 or count_delta != 0:
                 s = self.status_color(status) + str(count)
                 if count_delta != 0:
                     s += "({:+d})".format(count_delta)
                 s += self.RESET
-                counters[status] = s
-                counter_formats.append("{{{s}}} {s}".format(s=status))
+                counters[status.value] = s
+                counter_formats.append("{{{s}}} {s}".format(s=status.value))
         # Print detailed summary only if there were tests.
         if counter_formats:
             msg = " ".join(counter_formats).format(**counters)
@@ -477,7 +481,7 @@ class HTestResult(object):
         self._tests_run += 1
         if not self._stopwatch.is_started:
             self._stopwatch.start()
-        self._printer.print_message(test, "running", self.status_counters,
+        self._printer.print_message(test, Status.RUNNING, self.status_counters,
                                     self.progress,
                                     self._stopwatch.mean_split_time,
                                     self._stopwatch.last_split_time)
@@ -519,27 +523,27 @@ class HTestResult(object):
 
     def addSuccess(self, test):
         # print("addSuccess", repr(test))
-        self._print_outcome_message(test, "pass")
+        self._print_outcome_message(test, Status.PASS)
 
     @failfast_decorator
     def addFailure(self, test, err):
         # print("addFailure", repr(test), repr(err))
-        self._print_outcome_message(test, "fail", err=err)
+        self._print_outcome_message(test, Status.FAIL, err=err)
 
     @failfast_decorator
     def addError(self, test, err):
         # print("addError", repr(test), repr(err))
-        self._print_outcome_message(test, "error", err=err)
+        self._print_outcome_message(test, Status.ERROR, err=err)
 
     def addSkip(self, test, reason):
-        self._print_outcome_message(test, "skip", reason=reason)
+        self._print_outcome_message(test, Status.SKIP, reason=reason)
 
     def addExpectedFailure(self, test, err):
-        self._print_outcome_message(test, "xfail")
+        self._print_outcome_message(test, Status.XFAIL)
 
     @failfast_decorator
     def addUnexpectedSuccess(self, test, err=None):
-        self._print_outcome_message(test, "xpass")
+        self._print_outcome_message(test, Status.XPASS)
 
     def print_summary(self):
         prev_counters = self._load_status()
@@ -578,8 +582,8 @@ class HTestResult(object):
 
     @property
     def status_scores(self):
-        return {status:self.status_counters.get(status)
-                for status in Status.all()}
+        return {status.value:self.status_counters.get(status)
+                for status in Status.stopped()}
 
     def _write_status(self):
         return self._status_db.save(self.status_scores)

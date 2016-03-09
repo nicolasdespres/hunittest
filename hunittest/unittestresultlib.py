@@ -406,7 +406,27 @@ class ResultPrinter:
     def close(self):
         self._printer.close()
 
-class HTestResult(object):
+class CheckCWDDidNotChanged:
+    """Check whether current working directory has changed after test execution.
+
+    Use it as a mix-in of a unittest's result class.
+    """
+
+    def __init__(self):
+        super().__init__()
+
+    def startTest(self, test):
+        self.old_cwd = safe_getcwd()
+        super().startTest(test)
+
+    def stopTest(self, test):
+        super().stopTest(test)
+        new_cwd = safe_getcwd()
+        if self.old_cwd is None or new_cwd is None \
+           or self.old_cwd != new_cwd:
+            raise RuntimeError("working directory changed during test")
+
+class HTestResult(CheckCWDDidNotChanged):
 
     def __init__(self, printer, total_tests, top_level_directory,
                  failfast=False,
@@ -478,6 +498,7 @@ class HTestResult(object):
                                     err=err, reason=reason)
 
     def startTest(self, test):
+        super(HTestResult, self).startTest(test)
         self._tests_run += 1
         if not self._stopwatch.is_started:
             self._stopwatch.start()
@@ -485,7 +506,6 @@ class HTestResult(object):
                                     self.progress,
                                     self._stopwatch.mean_split_time,
                                     self._stopwatch.last_split_time)
-        self.old_cwd = safe_getcwd()
         self._setupStdout()
 
     def _setupStdout(self):
@@ -493,10 +513,7 @@ class HTestResult(object):
         sys.stderr = self._stderr_buffer
 
     def stopTest(self, test):
-        new_cwd = safe_getcwd()
-        if self.old_cwd is None or new_cwd is None \
-           or self.old_cwd != new_cwd:
-            raise RuntimeError("working directory changed during test")
+        super(HTestResult, self).stopTest(test)
         stdout_value = self._stdout_buffer.getvalue()
         stderr_value = self._stderr_buffer.getvalue()
         self._restoreStdout()

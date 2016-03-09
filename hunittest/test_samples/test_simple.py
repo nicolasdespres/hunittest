@@ -72,3 +72,11 @@ class Case2(unittest.TestCase):
 
 class EmptyCase(unittest.TestCase):
     pass
+
+# ## Un-comment this class to test the mechanism that checks whether the current
+# ## working directory has changed.
+# class CheckCWDDidNotChanged(unittest.TestCase):
+
+#     def test_check_cwd_change(self):
+#         import os
+#         os.chdir("/tmp")

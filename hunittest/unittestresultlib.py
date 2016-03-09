@@ -11,6 +11,7 @@ import os
 import re
 import unittest
 import json
+from enum import Enum
 
 from hunittest.line_printer import strip_ansi_escape
 from hunittest.timedeltalib import timedelta_to_hstr
@@ -132,10 +133,24 @@ class StatusDB:
         except FileNotFoundError:
             return
 
+class Status(Enum):
+    """Possible test status.
+    """
+
+    PASS = "pass"
+    FAIL = "fail"
+    ERROR = "error"
+    SKIP = "skip"
+    XFAIL = "xfail"
+    XPASS = "xpass"
+
+    @classmethod
+    def all(cls):
+        return [x.value for x in cls]
+
 class HTestResult(object):
 
-    ALL_STATUS = "pass fail error skip xfail xpass".split()
-    _STATUS_MAXLEN = max(len(s) for s in ALL_STATUS+["running"])
+    _STATUS_MAXLEN = max(len(s) for s in Status.all()+["running"])
 
     @staticmethod
     def status_counter_name(status):
@@ -156,7 +171,7 @@ class HTestResult(object):
         self._status_db = status_db
         self._strip_unittest_traceback=strip_unittest_traceback
         self._show_progress = show_progress
-        for status in self.ALL_STATUS:
+        for status in Status.all():
             self._set_status_counter(status, 0)
         self._stopwatch = StopWatch()
         self._original_stdout = sys.stdout
@@ -257,7 +272,7 @@ class HTestResult(object):
     def _print_progress_message(self, full_test_name, test_status):
         counters = {}
         counter_formats = []
-        for status in self.ALL_STATUS:
+        for status in Status.all():
             counters[status] = self.status_color(status) \
                                + str(self.get_status_counter(status)) \
                                + self.RESET
@@ -488,7 +503,7 @@ class HTestResult(object):
         ### Print detailed summary
         counters = {}
         counter_formats = []
-        for status in self.ALL_STATUS:
+        for status in Status.all():
             count = self.get_status_counter(status)
             if prev_counters is None:
                 count_delta = 0
@@ -538,7 +553,7 @@ class HTestResult(object):
     @property
     def status_scores(self):
         return {status:self.get_status_counter(status)
-                for status in self.ALL_STATUS}
+                for status in Status.all()}
 
     def _write_status(self):
         return self._status_db.save(self.status_scores)

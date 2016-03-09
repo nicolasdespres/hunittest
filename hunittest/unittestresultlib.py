@@ -176,35 +176,19 @@ class StatusCounters:
             == self.xpass_count \
             == 0
 
-class HTestResult(object):
+class ResultPrinter:
 
     _STATUS_MAXLEN = max(len(s) for s in Status.all()+["running"])
 
-    def __init__(self, printer, total_tests, top_level_directory,
-                 failfast=False,
+    def __init__(self, printer, top_level_directory,
                  log_filename=None,
-                 status_db=None,
                  strip_unittest_traceback=False,
                  show_progress=True):
-        self._failfast = failfast
-        self._tests_run = 0
-        self._should_stop = False
         self._printer = _LogLinePrinter(printer, log_filename)
-        self._total_tests = total_tests
         self._top_level_directory = top_level_directory
-        self._status_db = status_db
         self._strip_unittest_traceback=strip_unittest_traceback
         self._show_progress = show_progress
-        self.status_counters = StatusCounters()
-        self._stopwatch = StopWatch()
-        self._original_stdout = sys.stdout
-        self._original_stderr = sys.stderr
-        self._stdout_buffer = io.StringIO()
-        self._stderr_buffer = io.StringIO()
         self._hbar_len = None
-        self._last_traceback = None
-        self._error_test_specs = set()
-        self._succeed_test_specs = set()
         self.PASS_COLOR = self._printer.term_info.fore_green
         self.FAIL_COLOR = self._printer.term_info.fore_red
         self.SKIP_COLOR = self._printer.term_info.fore_blue
@@ -215,35 +199,6 @@ class HTestResult(object):
         self.RESET = self._printer.term_info.reset_all
         self.TRACE_HL = self._printer.term_info.fore_white \
                         + self._printer.term_info.bold
-
-    @property
-    def shouldStop(self):
-        return self._should_stop
-
-    @property
-    def buffer(self):
-        return True
-
-    @buffer.setter
-    def buffer(self, value):
-        if not value:
-            raise NotImplementedError("we cannot support un-buffered IO.")
-
-    @property
-    def failfast(self):
-        return self._failfast
-
-    @property
-    def testsRun(self):
-        return self._tests_run
-
-    @property
-    def total_tests(self):
-        return self._total_tests
-
-    @property
-    def progress(self):
-        return self._tests_run / self._total_tests
 
     def status_color(self, status):
         return getattr(self, "{}_COLOR".format(status.upper()))
@@ -258,12 +213,14 @@ class HTestResult(object):
             + formatter.format(msg) \
             + self.RESET
 
-    def _print_progress_message(self, full_test_name, test_status):
+    def _print_progress_message(self, full_test_name, test_status,
+                                status_counters, progress,
+                                mean_split_time, last_split_time):
         counters = {}
         counter_formats = []
         for status in Status.all():
             counters[status] = self.status_color(status) \
-                               + str(self.status_counters.get(status)) \
+                               + str(status_counters.get(status)) \
                                + self.RESET
             counter_formats.append("{{{s}}}".format(s=status))
         prefix_formatter = "[{progress:>4.0%}|{mean_split_time:.2f}ms|" \
@@ -271,34 +228,28 @@ class HTestResult(object):
                            + "] {test_status}: "
         suffix_formatter = " ({elapsed})"
         prefix = prefix_formatter.format(
-            progress=self.progress,
+            progress=progress,
             test_status=self.format_test_status(test_status),
-            mean_split_time=timedelta_to_unit(self._stopwatch.mean_split_time,
+            mean_split_time=timedelta_to_unit(mean_split_time,
                                               "ms"),
             **counters)
         if test_status != "running" \
-           and self._stopwatch.last_split_time is not None:
+           and last_split_time is not None:
             suffix = suffix_formatter.format(
-                elapsed=timedelta_to_hstr(self._stopwatch.last_split_time))
+                elapsed=timedelta_to_hstr(last_split_time))
         else:
             suffix = ""
         self._printer.overwrite_message(prefix, full_test_name,
                                         suffix, ellipse_index=1)
 
-    def _print_outcome_message(self, test, test_status, err=None, reason=None):
-        self._stopwatch.split()
-        self.status_counters.inc(test_status)
-        full_test_name = _full_test_name(test)
-        if err is None:
-            self._succeed_test_specs.add(full_test_name)
-        else:
-            self._error_test_specs.add(full_test_name)
-        self._print_message(test, test_status, err=err, reason=reason)
-
-    def _print_message(self, test, test_status, err=None, reason=None):
+    def print_message(self, test, test_status, status_counters, progress,
+                      mean_split_time, last_split_time,
+                      err=None, reason=None):
         full_test_name = _full_test_name(test)
         if self._show_progress:
-            self._print_progress_message(full_test_name, test_status)
+            self._print_progress_message(full_test_name, test_status,
+                                         status_counters, progress,
+                                         mean_split_time, last_split_time)
         if err is not None:
             self._print_error(test, test_status, err)
         if reason is not None:
@@ -331,7 +282,6 @@ class HTestResult(object):
         self._hbar_len = len(strip_ansi_escape(msg))
         self._printer.log_overwrite_nl("-" * self._hbar_len)
         self._printer.log_overwrite_nl(msg)
-
 
     def _print_error(self, test, test_status, err):
         assert err is not None
@@ -394,7 +344,7 @@ class HTestResult(object):
         for line in output.splitlines():
             self._printer.log_write_nl(line)
 
-    def _print_ios(self, test, stdout_value, stderr_value):
+    def print_ios(self, test, stdout_value, stderr_value):
         if not stdout_value and not stderr_value:
             return
         if test._outcome is None or test._outcome.success:
@@ -406,11 +356,131 @@ class HTestResult(object):
         if stdout_value or stderr_value:
             self._printer.log_write_nl("-" * self._hbar_len)
 
+    def _format_run_status(self, status_counters):
+        if status_counters.is_successful():
+            color = self.PASS_COLOR
+        else:
+            color = self.FAIL_COLOR
+        return color + "Run" + self.RESET
+
+    def print_summary(self,
+            tests_run,
+            prev_status_counters,
+            status_counters,
+            total_time,
+            mean_split_time):
+        ### Print main summary
+        formatter = "{run_status} {total_count} tests in "\
+                    "{total_time} (avg: {mean_split_time})"
+        msg = formatter.format(
+            run_status=self._format_run_status(status_counters),
+            total_count=tests_run,
+            total_time=timedelta_to_hstr(total_time),
+            mean_split_time=timedelta_to_hstr(mean_split_time))
+        self._printer.log_overwrite_nl(msg)
+        ### Print detailed summary
+        counters = {}
+        counter_formats = []
+        for status in Status.all():
+            count = status_counters.get(status)
+            if prev_status_counters is None:
+                count_delta = 0
+            else:
+                count_delta = count - prev_status_counters[status]
+            if count > 0 or count_delta != 0:
+                s = self.status_color(status) + str(count)
+                if count_delta != 0:
+                    s += "({:+d})".format(count_delta)
+                s += self.RESET
+                counters[status] = s
+                counter_formats.append("{{{s}}} {s}".format(s=status))
+        # Print detailed summary only if there were tests.
+        if counter_formats:
+            msg = " ".join(counter_formats).format(**counters)
+            self._printer.log_write_nl(msg)
+
+    def close(self):
+        self._printer.close()
+
+class HTestResult(object):
+
+    def __init__(self, printer, total_tests, top_level_directory,
+                 failfast=False,
+                 log_filename=None,
+                 status_db=None,
+                 strip_unittest_traceback=False,
+                 show_progress=True):
+        self._failfast = failfast
+        self._tests_run = 0
+        self._should_stop = False
+        self._printer = ResultPrinter(
+            printer, top_level_directory,
+            log_filename=log_filename,
+            strip_unittest_traceback=strip_unittest_traceback,
+            show_progress=show_progress)
+        self._total_tests = total_tests
+        self._status_db = status_db
+        self.status_counters = StatusCounters()
+        self._stopwatch = StopWatch()
+        self._original_stdout = sys.stdout
+        self._original_stderr = sys.stderr
+        self._stdout_buffer = io.StringIO()
+        self._stderr_buffer = io.StringIO()
+        self._last_traceback = None
+        self._error_test_specs = set()
+        self._succeed_test_specs = set()
+
+    @property
+    def shouldStop(self):
+        return self._should_stop
+
+    @property
+    def buffer(self):
+        return True
+
+    @buffer.setter
+    def buffer(self, value):
+        if not value:
+            raise NotImplementedError("we cannot support un-buffered IO.")
+
+    @property
+    def failfast(self):
+        return self._failfast
+
+    @property
+    def testsRun(self):
+        return self._tests_run
+
+    @property
+    def total_tests(self):
+        return self._total_tests
+
+    @property
+    def progress(self):
+        return self._tests_run / self._total_tests
+
+    def _print_outcome_message(self, test, test_status, err=None, reason=None):
+        self._stopwatch.split()
+        self.status_counters.inc(test_status)
+        full_test_name = _full_test_name(test)
+        if err is None:
+            self._succeed_test_specs.add(full_test_name)
+        else:
+            self._error_test_specs.add(full_test_name)
+        self._printer.print_message(test, test_status, self.status_counters,
+                                    self.progress,
+                                    self._stopwatch.mean_split_time,
+                                    self._stopwatch.last_split_time,
+                                    err=err, reason=reason)
+
     def startTest(self, test):
         self._tests_run += 1
         if not self._stopwatch.is_started:
             self._stopwatch.start()
-        self._print_message(test, "running")
+        self._printer.print_message(test, "running", self.status_counters,
+                                    self.progress,
+                                    self._stopwatch.mean_split_time,
+                                    self._stopwatch.last_split_time)
         self.old_cwd = safe_getcwd()
         self._setupStdout()
 
@@ -426,7 +496,7 @@ class HTestResult(object):
         stdout_value = self._stdout_buffer.getvalue()
         stderr_value = self._stderr_buffer.getvalue()
         self._restoreStdout()
-        self._print_ios(test, stdout_value, stderr_value)
+        self._printer.print_ios(test, stdout_value, stderr_value)
 
     def _restoreStdout(self):
         sys.stdout = self._original_stdout
@@ -471,44 +541,14 @@ class HTestResult(object):
     def addUnexpectedSuccess(self, test, err=None):
         self._print_outcome_message(test, "xpass")
 
-    def _format_run_status(self):
-        if self.wasSuccessful():
-            color = self.PASS_COLOR
-        else:
-            color = self.FAIL_COLOR
-        return color + "Run" + self.RESET
-
     def print_summary(self):
         prev_counters = self._load_status()
-        ### Print main summary
-        formatter = "{run_status} {total_count} tests in "\
-                    "{total_time} (avg: {mean_split_time})"
-        msg = formatter.format(
-            run_status=self._format_run_status(),
-            total_count=self._tests_run,
-            total_time=timedelta_to_hstr(self._stopwatch.total_split_time),
-            mean_split_time=timedelta_to_hstr(self._stopwatch.mean_split_time))
-        self._printer.log_overwrite_nl(msg)
-        ### Print detailed summary
-        counters = {}
-        counter_formats = []
-        for status in Status.all():
-            count = self.status_counters.get(status)
-            if prev_counters is None:
-                count_delta = 0
-            else:
-                count_delta = count - prev_counters[status]
-            if count > 0 or count_delta != 0:
-                s = self.status_color(status) + str(count)
-                if count_delta != 0:
-                    s += "({:+d})".format(count_delta)
-                s += self.RESET
-                counters[status] = s
-                counter_formats.append("{{{s}}} {s}".format(s=status))
-        # Print detailed summary only if there were tests.
-        if counter_formats:
-            msg = " ".join(counter_formats).format(**counters)
-            self._printer.log_write_nl(msg)
+        self._printer.print_summary(
+            self._tests_run,
+            prev_counters,
+            self.status_counters,
+            self._stopwatch.total_split_time,
+            self._stopwatch.mean_split_time)
         self._write_status()
 
     def stop(self):

@@ -148,13 +148,37 @@ class Status(Enum):
     def all(cls):
         return [x.value for x in cls]
 
+class StatusCounters:
+    """Hold test counters for each possible status.
+    """
+
+    @staticmethod
+    def name(status):
+        return "{}_count".format(status)
+
+    def __init__(self):
+        for status in Status.all():
+            self.set(status, 0)
+
+    def get(self, status):
+        return getattr(self, self.name(status))
+
+    def set(self, status, value):
+        setattr(self, self.name(status), value)
+
+    def inc(self, status, inc=1):
+        v = self.get(status)
+        self.set(status, v+inc)
+
+    def is_successful(self):
+        return self.fail_count \
+            == self.error_count \
+            == self.xpass_count \
+            == 0
+
 class HTestResult(object):
 
     _STATUS_MAXLEN = max(len(s) for s in Status.all()+["running"])
-
-    @staticmethod
-    def status_counter_name(status):
-        return "_{}_count".format(status)
 
     def __init__(self, printer, total_tests, top_level_directory,
                  failfast=False,
@@ -171,8 +195,7 @@ class HTestResult(object):
         self._status_db = status_db
         self._strip_unittest_traceback=strip_unittest_traceback
         self._show_progress = show_progress
-        for status in Status.all():
-            self._set_status_counter(status, 0)
+        self.status_counters = StatusCounters()
         self._stopwatch = StopWatch()
         self._original_stdout = sys.stdout
         self._original_stderr = sys.stderr
@@ -222,42 +245,8 @@ class HTestResult(object):
     def progress(self):
         return self._tests_run / self._total_tests
 
-    @property
-    def pass_count(self):
-        return self._pass_count
-
-    @property
-    def fail_count(self):
-        return self._fail_count
-
-    @property
-    def skip_count(self):
-        return self._skip_count
-
-    @property
-    def xfail_count(self):
-        return self._xfail_count
-
-    @property
-    def xpass_count(self):
-        return self._xpass_count
-
-    @property
-    def error_count(self):
-        return self._error_count
-
     def status_color(self, status):
         return getattr(self, "{}_COLOR".format(status.upper()))
-
-    def get_status_counter(self, status):
-        return getattr(self, self.status_counter_name(status))
-
-    def _set_status_counter(self, status, value):
-        setattr(self, self.status_counter_name(status), value)
-
-    def _inc_status_counter(self, status, inc=1):
-        v = self.get_status_counter(status)
-        self._set_status_counter(status, v+inc)
 
     def format_test_status(self, status, aligned=True):
         msg = status.upper()
@@ -274,7 +263,7 @@ class HTestResult(object):
         counter_formats = []
         for status in Status.all():
             counters[status] = self.status_color(status) \
-                               + str(self.get_status_counter(status)) \
+                               + str(self.status_counters.get(status)) \
                                + self.RESET
             counter_formats.append("{{{s}}}".format(s=status))
         prefix_formatter = "[{progress:>4.0%}|{mean_split_time:.2f}ms|" \
@@ -298,7 +287,7 @@ class HTestResult(object):
 
     def _print_outcome_message(self, test, test_status, err=None, reason=None):
         self._stopwatch.split()
-        self._inc_status_counter(test_status)
+        self.status_counters.inc(test_status)
         full_test_name = _full_test_name(test)
         if err is None:
             self._succeed_test_specs.add(full_test_name)
@@ -504,7 +493,7 @@ class HTestResult(object):
         counters = {}
         counter_formats = []
         for status in Status.all():
-            count = self.get_status_counter(status)
+            count = self.status_counters.get(status)
             if prev_counters is None:
                 count_delta = 0
             else:
@@ -526,10 +515,7 @@ class HTestResult(object):
         self._should_stop = True
 
     def wasSuccessful(self):
-        return self.fail_count \
-            == self.error_count \
-            == self.xpass_count \
-            == 0
+        return self.status_counters.is_successful()
 
     def close_log_file(self):
         self._printer.close()
@@ -552,7 +538,7 @@ class HTestResult(object):
 
     @property
     def status_scores(self):
-        return {status:self.get_status_counter(status)
+        return {status:self.status_counters.get(status)
                 for status in Status.all()}
 
     def _write_status(self):

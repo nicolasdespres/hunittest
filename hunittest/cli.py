@@ -378,13 +378,13 @@ def main(argv):
     test_specs = options.test_specs
     if not test_specs:
         test_specs = list(list_packages_from(top_level_directory))
-    isatty = False if options.verbose else None
     failfast = options.failfast or options.pdb
     log_filename = get_log_filename()
     status_db = StatusDB(get_status_filename(options))
     result = None
-    with LinePrinter(isatty=isatty, quiet=options.quiet,
-                     color_mode=options.color) as printer:
+    with LinePrinter(quiet=options.quiet,
+                     color_mode=options.color,
+                     verbose=options.verbose) as printer:
         try:
             with CoverageInstrument(options.coverage_html) as cov_inst:
                 test_names = reported_collect(printer, test_specs,

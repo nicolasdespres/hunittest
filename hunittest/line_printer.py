@@ -37,7 +37,7 @@ class LinePrinter(object):
     """
 
     def __init__(self, output=sys.stdout, isatty=None, quiet=False,
-                 color_mode="auto"):
+                 color_mode="auto", verbose=False):
         self._termnfo = TermInfo(output, color_mode)
         self._cr = self._termnfo.carriage_return
         if not self._cr:
@@ -45,6 +45,7 @@ class LinePrinter(object):
         self._output = output
         self._isatty = self._termnfo.isatty if isatty is None else isatty
         self._quiet = quiet
+        self._verbose = verbose
         self.reset()
 
     def reset(self):
@@ -94,7 +95,7 @@ class LinePrinter(object):
             if not isinstance(arg, str):
                 raise TypeError("positional argument {} must be a str, not {}"
                                 .format(i, type(arg).__name__))
-        if ellipse_index is None or not self._isatty:
+        if ellipse_index is None or not self.has_overwrite:
             return self.overwrite("".join(args))
         termwidth = self._get_termwidth()
         if not termwidth:
@@ -122,7 +123,7 @@ class LinePrinter(object):
         if self._prev_line is not None and self._prev_line == line:
             return
         written_line = line
-        if self._isatty:
+        if self.has_overwrite:
             self.write(self._cr)
             termwidth = self._get_termwidth()
             if termwidth:
@@ -130,9 +131,9 @@ class LinePrinter(object):
                 trunc_pos, line_visual_len, line_has_ansi = truncinfo
                 written_line = line[:trunc_pos]
         self.write(written_line)
-        if not self._isatty:
+        if not self.has_overwrite:
             self.write("\n")
-        if self._isatty and self._prev_line is not None:
+        if self.has_overwrite and self._prev_line is not None:
             if self._termnfo.clear_eol:
                 self.write(self._termnfo.clear_eol)
             else:
@@ -169,6 +170,14 @@ class LinePrinter(object):
     @property
     def quiet(self):
         return self._quiet
+
+    @property
+    def verbose(self):
+        return self._verbose
+
+    @property
+    def has_overwrite(self):
+        return self._isatty and not self._verbose
 
     def write_exception(self):
         self.new_line()

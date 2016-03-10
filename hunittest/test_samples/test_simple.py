@@ -36,8 +36,8 @@ class Case1(unittest.TestCase):
         raise RuntimeError("error raised for testing purpose")
 
     def test_buffer_success(self):
-        sys.stdout.write("!!!!should not appear because success!!!!")
-        sys.stderr.write("!!!!should not appear because success!!!!")
+        sys.stdout.write("!!!!should appear because success!!!!")
+        sys.stderr.write("!!!!should appear because success!!!!")
 
     def test_buffer_failure(self):
         sys.stdout.write("!!!!failure stdout!!!!")

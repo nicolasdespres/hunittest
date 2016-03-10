@@ -438,7 +438,57 @@ class CheckCWDDidNotChanged(BaseResult):
            or self.old_cwd != new_cwd:
             raise RuntimeError("working directory changed during test")
 
-class HTestResult(CheckCWDDidNotChanged):
+class CaptureStdio(BaseResult):
+    """Capture and store test's stdout and stderr.
+
+    Use it as a mix-in of a unittest's result class.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._original_stdout = sys.stdout
+        self._original_stderr = sys.stderr
+        self._stdout_buffer = io.StringIO()
+        self._stderr_buffer = io.StringIO()
+        self._stdout_value = None
+        self._stderr_value = None
+        self.buffer = True
+
+    def startTest(self, test):
+        if self.buffer:
+            self._setupStdout()
+        super().startTest(test)
+
+    def stopTest(self, test):
+        super().stopTest(test)
+        if self.buffer:
+            self._stdout_value = self._stdout_buffer.getvalue()
+            self._stderr_value = self._stderr_buffer.getvalue()
+            self._restoreStdout()
+
+    def _setupStdout(self):
+        sys.stdout = self._stdout_buffer
+        sys.stderr = self._stderr_buffer
+        self._stdout_value = None
+        self._stderr_value = None
+
+    def _restoreStdout(self):
+        sys.stdout = self._original_stdout
+        sys.stderr = self._original_stderr
+        self._stdout_buffer.seek(0)
+        self._stdout_buffer.truncate()
+        self._stderr_buffer.seek(0)
+        self._stderr_buffer.truncate()
+
+    @property
+    def stdout_value(self):
+        return self._stdout_value
+
+    @property
+    def stderr_value(self):
+        return self._stderr_value
+
+class HTestResult(CheckCWDDidNotChanged, CaptureStdio):
 
     def __init__(self, printer, total_tests, top_level_directory,
                  failfast=False,
@@ -446,6 +496,7 @@ class HTestResult(CheckCWDDidNotChanged):
                  status_db=None,
                  strip_unittest_traceback=False,
                  show_progress=True):
+        super().__init__()
         self._failfast = failfast
         self._tests_run = 0
         self._should_stop = False
@@ -458,10 +509,6 @@ class HTestResult(CheckCWDDidNotChanged):
         self._status_db = status_db
         self.status_counters = StatusCounters()
         self._stopwatch = StopWatch()
-        self._original_stdout = sys.stdout
-        self._original_stderr = sys.stderr
-        self._stdout_buffer = io.StringIO()
-        self._stderr_buffer = io.StringIO()
         self._last_traceback = None
         self._error_test_specs = set()
         self._succeed_test_specs = set()
@@ -469,15 +516,6 @@ class HTestResult(CheckCWDDidNotChanged):
     @property
     def shouldStop(self):
         return self._should_stop
-
-    @property
-    def buffer(self):
-        return True
-
-    @buffer.setter
-    def buffer(self, value):
-        if not value:
-            raise NotImplementedError("we cannot support un-buffered IO.")
 
     @property
     def failfast(self):
@@ -510,7 +548,6 @@ class HTestResult(CheckCWDDidNotChanged):
                                     err=err, reason=reason)
 
     def startTest(self, test):
-        super(HTestResult, self).startTest(test)
         self._tests_run += 1
         if not self._stopwatch.is_started:
             self._stopwatch.start()
@@ -518,26 +555,11 @@ class HTestResult(CheckCWDDidNotChanged):
                                     self.progress,
                                     self._stopwatch.mean_split_time,
                                     self._stopwatch.last_split_time)
-        self._setupStdout()
-
-    def _setupStdout(self):
-        sys.stdout = self._stdout_buffer
-        sys.stderr = self._stderr_buffer
+        super().startTest(test)
 
     def stopTest(self, test):
-        super(HTestResult, self).stopTest(test)
-        stdout_value = self._stdout_buffer.getvalue()
-        stderr_value = self._stderr_buffer.getvalue()
-        self._restoreStdout()
-        self._printer.print_ios(test, stdout_value, stderr_value)
-
-    def _restoreStdout(self):
-        sys.stdout = self._original_stdout
-        sys.stderr = self._original_stderr
-        self._stdout_buffer.seek(0)
-        self._stdout_buffer.truncate()
-        self._stderr_buffer.seek(0)
-        self._stderr_buffer.truncate()
+        super().stopTest(test)
+        self._printer.print_ios(test, self.stdout_value, self.stderr_value)
 
     def startTestRun(self):
         # print("startTestRun")

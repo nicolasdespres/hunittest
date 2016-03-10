@@ -689,10 +689,6 @@ class HTestResult(CheckCWDDidNotChanged,
         self._printer.close()
 
     @property
-    def log_filename(self):
-        return self._printer.filename
-
-    @property
     def error_test_specs(self):
         return self._error_test_specs
 

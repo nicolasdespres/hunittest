@@ -565,7 +565,29 @@ class CaptureStdio(BaseResult):
     def stderr_value(self):
         return self._stderr_value
 
-class HTestResult(CheckCWDDidNotChanged, CaptureStdio, Failfast):
+class TestExecStopwatch(BaseResult):
+    """Time test execution using a stopwatch.
+
+    Use it as a mix-in of a unittest's result class.
+    """
+
+    def __init__(self, **kwds):
+        super().__init__(**kwds)
+        self.stopwatch = StopWatch()
+
+    def startTest(self, test):
+        if not self.stopwatch.is_started:
+            self.stopwatch.start()
+        super().startTest(test)
+
+    def addOutcome(self, test, status, err=None, reason=None):
+        self.stopwatch.split()
+        super().addOutcome(test, status, err, reason)
+
+class HTestResult(CheckCWDDidNotChanged,
+                  CaptureStdio,
+                  Failfast,
+                  TestExecStopwatch):
 
     def __init__(self, printer, total_tests, top_level_directory,
                  log_filename=None,
@@ -583,7 +605,6 @@ class HTestResult(CheckCWDDidNotChanged, CaptureStdio, Failfast):
         self._total_tests = total_tests
         self._status_db = status_db
         self.status_counters = StatusCounters()
-        self._stopwatch = StopWatch()
         self._error_test_specs = set()
         self._succeed_test_specs = set()
 
@@ -600,7 +621,6 @@ class HTestResult(CheckCWDDidNotChanged, CaptureStdio, Failfast):
         return self._tests_run / self._total_tests
 
     def _print_outcome_message(self, test, test_status, err=None, reason=None):
-        self._stopwatch.split()
         self.status_counters.inc(test_status)
         full_test_name = _full_test_name(test)
         if err is None:
@@ -609,18 +629,16 @@ class HTestResult(CheckCWDDidNotChanged, CaptureStdio, Failfast):
             self._error_test_specs.add(full_test_name)
         self._printer.print_message(test, test_status, self.status_counters,
                                     self.progress,
-                                    self._stopwatch.mean_split_time,
-                                    self._stopwatch.last_split_time,
+                                    self.stopwatch.mean_split_time,
+                                    self.stopwatch.last_split_time,
                                     err=err, reason=reason)
 
     def startTest(self, test):
         self._tests_run += 1
-        if not self._stopwatch.is_started:
-            self._stopwatch.start()
         self._printer.print_message(test, Status.RUNNING, self.status_counters,
                                     self.progress,
-                                    self._stopwatch.mean_split_time,
-                                    self._stopwatch.last_split_time)
+                                    self.stopwatch.mean_split_time,
+                                    self.stopwatch.last_split_time)
         super().startTest(test)
 
     def stopTest(self, test):
@@ -637,8 +655,8 @@ class HTestResult(CheckCWDDidNotChanged, CaptureStdio, Failfast):
             self._tests_run,
             prev_counters,
             self.status_counters,
-            self._stopwatch.total_split_time,
-            self._stopwatch.mean_split_time)
+            self.stopwatch.total_split_time,
+            self.stopwatch.mean_split_time)
         self._write_status()
 
     def wasSuccessful(self):

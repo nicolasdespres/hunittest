@@ -20,15 +20,6 @@ from hunittest.stopwatch import StopWatch
 from hunittest.utils import mkdir_p
 from hunittest.utils import safe_getcwd
 
-def failfast_decorator(method):
-    @functools.wraps(method)
-    def inner(self, test, err=None):
-        if getattr(self, 'failfast', False):
-            self._last_traceback = err[2]
-            self.stop()
-        return method(self, test, err)
-    return inner
-
 class _LogLinePrinter(object):
     """Proxy over a LinePrinter.
 
@@ -151,6 +142,11 @@ class Status(Enum):
         for status in cls:
             if status is not cls.RUNNING:
                 yield status
+
+    def is_erroneous(self):
+        """Return whether this status is considered as an erroneous test status.
+        """
+        return self is self.FAIL or self is self.ERROR or self is self.XPASS
 
 class StatusCounters:
     """Hold test counters for each possible status.
@@ -410,6 +406,16 @@ class BaseResult:
     """Root result object used has base class for super delegation chain.
     """
 
+    def __init__(self):
+        self._should_stop = False
+
+    @property
+    def shouldStop(self):
+        return self._should_stop
+
+    def stop(self):
+        self._should_stop = True
+
     def startTest(self, test):
         # the delegation chain stops here
         assert not hasattr(super(), 'startTest')
@@ -418,14 +424,85 @@ class BaseResult:
         # the delegation chain stops here
         assert not hasattr(super(), 'stopTest')
 
+    def startTestRun(self):
+        # print("startTestRun")
+        pass
+
+    def stopTestRun(self):
+        # print("stopTesRun")
+        pass
+
+    def addSubTest(self, test, subtest, outcome):
+        assert False
+
+    def addSuccess(self, test):
+        # the delegation chain stops here
+        assert not hasattr(super(), 'stopTest')
+        self.addOutcome(test, Status.PASS)
+
+    def addFailure(self, test, err):
+        # the delegation chain stops here
+        assert not hasattr(super(), 'stopTest')
+        self.addOutcome(test, Status.FAIL, err=err)
+
+    def addError(self, test, err):
+        # the delegation chain stops here
+        assert not hasattr(super(), 'stopTest')
+        self.addOutcome(test, Status.ERROR, err=err)
+
+    def addSkip(self, test, reason):
+        # the delegation chain stops here
+        assert not hasattr(super(), 'stopTest')
+        self.addOutcome(test, Status.SKIP, reason=reason)
+
+    def addExpectedFailure(self, test, err):
+        # the delegation chain stops here
+        assert not hasattr(super(), 'stopTest')
+        self.addOutcome(test, Status.XFAIL, err=err)
+
+    def addUnexpectedSuccess(self, test):
+        # the delegation chain stops here
+        assert not hasattr(super(), 'stopTest')
+        self.addOutcome(test, Status.XPASS)
+
+    def addOutcome(self, test, status, err=None, reason=None):
+        """Called by all outcome callback.
+
+        Introduced to ease addition of behavior for all possible test outcomes.
+        """
+        # the delegation chain stops here
+        assert not hasattr(super(), 'stopTest')
+
+class Failfast(BaseResult):
+
+    def __init__(self, failfast=False, **kwds):
+        super().__init__(**kwds)
+        self._failfast = failfast
+        self._last_traceback = None
+
+    @property
+    def failfast(self):
+        return self._failfast
+
+    @property
+    def last_traceback(self):
+        return self._last_traceback
+
+    def addOutcome(self, test, status, err=None, reason=None):
+        super().addOutcome(test, status, err, reason)
+        if self._failfast and status.is_erroneous():
+            if err is not None:
+                self._last_traceback = err[2]
+            self.stop()
+
 class CheckCWDDidNotChanged(BaseResult):
     """Check whether current working directory has changed after test execution.
 
     Use it as a mix-in of a unittest's result class.
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, **kwds):
+        super().__init__(**kwds)
 
     def startTest(self, test):
         self.old_cwd = safe_getcwd()
@@ -444,15 +521,15 @@ class CaptureStdio(BaseResult):
     Use it as a mix-in of a unittest's result class.
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, buffer=True, **kwds):
+        super().__init__(**kwds)
+        self.buffer = buffer
         self._original_stdout = sys.stdout
         self._original_stderr = sys.stderr
         self._stdout_buffer = io.StringIO()
         self._stderr_buffer = io.StringIO()
         self._stdout_value = None
         self._stderr_value = None
-        self.buffer = True
 
     def startTest(self, test):
         if self.buffer:
@@ -488,18 +565,16 @@ class CaptureStdio(BaseResult):
     def stderr_value(self):
         return self._stderr_value
 
-class HTestResult(CheckCWDDidNotChanged, CaptureStdio):
+class HTestResult(CheckCWDDidNotChanged, CaptureStdio, Failfast):
 
     def __init__(self, printer, total_tests, top_level_directory,
-                 failfast=False,
                  log_filename=None,
                  status_db=None,
                  strip_unittest_traceback=False,
-                 show_progress=True):
-        super().__init__()
-        self._failfast = failfast
+                 show_progress=True,
+                 **kwds):
+        super().__init__(**kwds)
         self._tests_run = 0
-        self._should_stop = False
         self._printer = ResultPrinter(
             printer, top_level_directory,
             log_filename=log_filename,
@@ -509,17 +584,8 @@ class HTestResult(CheckCWDDidNotChanged, CaptureStdio):
         self._status_db = status_db
         self.status_counters = StatusCounters()
         self._stopwatch = StopWatch()
-        self._last_traceback = None
         self._error_test_specs = set()
         self._succeed_test_specs = set()
-
-    @property
-    def shouldStop(self):
-        return self._should_stop
-
-    @property
-    def failfast(self):
-        return self._failfast
 
     @property
     def testsRun(self):
@@ -561,40 +627,9 @@ class HTestResult(CheckCWDDidNotChanged, CaptureStdio):
         super().stopTest(test)
         self._printer.print_ios(test, self.stdout_value, self.stderr_value)
 
-    def startTestRun(self):
-        # print("startTestRun")
-        pass
-
-    def stopTestRun(self):
-        # print("stopTesRun")
-        pass
-
-    def addSubTest(self, test, subtest, outcome):
-        assert False
-
-    def addSuccess(self, test):
-        # print("addSuccess", repr(test))
-        self._print_outcome_message(test, Status.PASS)
-
-    @failfast_decorator
-    def addFailure(self, test, err):
-        # print("addFailure", repr(test), repr(err))
-        self._print_outcome_message(test, Status.FAIL, err=err)
-
-    @failfast_decorator
-    def addError(self, test, err):
-        # print("addError", repr(test), repr(err))
-        self._print_outcome_message(test, Status.ERROR, err=err)
-
-    def addSkip(self, test, reason):
-        self._print_outcome_message(test, Status.SKIP, reason=reason)
-
-    def addExpectedFailure(self, test, err):
-        self._print_outcome_message(test, Status.XFAIL)
-
-    @failfast_decorator
-    def addUnexpectedSuccess(self, test, err=None):
-        self._print_outcome_message(test, Status.XPASS)
+    def addOutcome(self, test, status, err=None, reason=None):
+        super().addOutcome(test, status, err, reason)
+        self._print_outcome_message(test, status, err, reason)
 
     def print_summary(self):
         prev_counters = self._load_status()
@@ -606,9 +641,6 @@ class HTestResult(CheckCWDDidNotChanged, CaptureStdio):
             self._stopwatch.mean_split_time)
         self._write_status()
 
-    def stop(self):
-        self._should_stop = True
-
     def wasSuccessful(self):
         return self.status_counters.is_successful()
 
@@ -618,10 +650,6 @@ class HTestResult(CheckCWDDidNotChanged, CaptureStdio):
     @property
     def log_filename(self):
         return self._printer.filename
-
-    @property
-    def last_traceback(self):
-        return self._last_traceback
 
     @property
     def error_test_specs(self):

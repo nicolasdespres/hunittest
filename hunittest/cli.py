@@ -394,8 +394,9 @@ def main(argv):
                 if options.collect_only:
                     printer.new_line()
                     return 0
-                result = HTestResult(printer, len(test_names),
+                result = HTestResult(printer,
                                      top_level_directory,
+                                     total_tests=len(test_names),
                                      failfast=failfast,
                                      log_filename=log_filename,
                                      status_db=status_db,

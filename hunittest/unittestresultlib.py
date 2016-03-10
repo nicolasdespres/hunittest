@@ -582,29 +582,16 @@ class TestExecStopwatch(BaseResult):
         self.stopwatch.split()
         super().addOutcome(test, status, err, reason)
 
-class HTestResult(CheckCWDDidNotChanged,
-                  CaptureStdio,
-                  Failfast,
-                  TestExecStopwatch):
+class RunProgress(BaseResult):
+    """Count running and ran tests.
 
-    def __init__(self, printer, total_tests, top_level_directory,
-                 log_filename=None,
-                 status_db=None,
-                 strip_unittest_traceback=False,
-                 show_progress=True,
-                 **kwds):
+    Use it as a mix-in of a unittest's result class.
+    """
+
+    def __init__(self, total_tests, **kwds):
         super().__init__(**kwds)
         self._tests_run = 0
-        self._printer = ResultPrinter(
-            printer, top_level_directory,
-            log_filename=log_filename,
-            strip_unittest_traceback=strip_unittest_traceback,
-            show_progress=show_progress)
         self._total_tests = total_tests
-        self._status_db = status_db
-        self.status_counters = StatusCounters()
-        self._error_test_specs = set()
-        self._succeed_test_specs = set()
 
     @property
     def testsRun(self):
@@ -617,6 +604,33 @@ class HTestResult(CheckCWDDidNotChanged,
     @property
     def progress(self):
         return self._tests_run / self._total_tests
+
+    def startTest(self, test):
+        self._tests_run += 1
+        super().startTest(test)
+
+class HTestResult(CheckCWDDidNotChanged,
+                  Failfast,
+                  RunProgress,
+                  TestExecStopwatch,
+                  CaptureStdio):
+
+    def __init__(self, printer, top_level_directory,
+                 log_filename=None,
+                 status_db=None,
+                 strip_unittest_traceback=False,
+                 show_progress=True,
+                 **kwds):
+        super().__init__(**kwds)
+        self._printer = ResultPrinter(
+            printer, top_level_directory,
+            log_filename=log_filename,
+            strip_unittest_traceback=strip_unittest_traceback,
+            show_progress=show_progress)
+        self._status_db = status_db
+        self.status_counters = StatusCounters()
+        self._error_test_specs = set()
+        self._succeed_test_specs = set()
 
     def _print_outcome_message(self, test, test_status, err=None, reason=None):
         self.status_counters.inc(test_status)
@@ -632,7 +646,6 @@ class HTestResult(CheckCWDDidNotChanged,
                                     err=err, reason=reason)
 
     def startTest(self, test):
-        self._tests_run += 1
         self._printer.print_message(test, Status.RUNNING, self.status_counters,
                                     self.progress,
                                     self.stopwatch.mean_split_time,

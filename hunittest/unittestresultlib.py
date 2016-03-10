@@ -406,7 +406,19 @@ class ResultPrinter:
     def close(self):
         self._printer.close()
 
-class CheckCWDDidNotChanged:
+class BaseResult:
+    """Root result object used has base class for super delegation chain.
+    """
+
+    def startTest(self, test):
+        # the delegation chain stops here
+        assert not hasattr(super(), 'startTest')
+
+    def stopTest(self, test):
+        # the delegation chain stops here
+        assert not hasattr(super(), 'stopTest')
+
+class CheckCWDDidNotChanged(BaseResult):
     """Check whether current working directory has changed after test execution.
 
     Use it as a mix-in of a unittest's result class.

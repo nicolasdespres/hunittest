@@ -400,6 +400,13 @@ class ResultPrinter:
     def close(self):
         self._printer.close()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.close()
+        return False
+
 class BaseResult:
     """Root result object used has base class for super delegation chain.
     """
@@ -684,9 +691,6 @@ class HTestResult(CheckCWDDidNotChanged,
             self.stopwatch.total_split_time,
             self.stopwatch.mean_split_time)
         self.save_status()
-
-    def close_log_file(self):
-        self._printer.close()
 
     @property
     def error_test_specs(self):

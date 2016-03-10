@@ -384,7 +384,13 @@ def main(argv):
     result = None
     with LinePrinter(quiet=options.quiet,
                      color_mode=options.color,
-                     verbose=options.verbose) as printer:
+                     verbose=options.verbose) as printer, \
+         ResultPrinter(
+             printer,
+             top_level_directory,
+             log_filename=log_filename,
+             strip_unittest_traceback=options.strip_unittest_traceback,
+             show_progress=not options.no_progress) as result_printer:
         try:
             with CoverageInstrument(options.coverage_html) as cov_inst:
                 test_names = reported_collect(printer, test_specs,
@@ -395,12 +401,6 @@ def main(argv):
                 if options.collect_only:
                     printer.new_line()
                     return 0
-                result_printer = ResultPrinter(
-                    printer,
-                    top_level_directory,
-                    log_filename=log_filename,
-                    strip_unittest_traceback=options.strip_unittest_traceback,
-                    show_progress=not options.no_progress)
                 result = HTestResult(result_printer,
                                      total_tests=len(test_names),
                                      failfast=failfast,
@@ -418,7 +418,6 @@ def main(argv):
         finally:
             if result is not None:
                 write_error_test_specs(result)
-                result.close_log_file()
     if result.wasSuccessful():
         return 0
     else:

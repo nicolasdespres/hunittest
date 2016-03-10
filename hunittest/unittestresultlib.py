@@ -615,18 +615,11 @@ class HTestResult(CheckCWDDidNotChanged,
                   TestExecStopwatch,
                   CaptureStdio):
 
-    def __init__(self, printer, top_level_directory,
-                 log_filename=None,
+    def __init__(self, result_printer,
                  status_db=None,
-                 strip_unittest_traceback=False,
-                 show_progress=True,
                  **kwds):
         super().__init__(**kwds)
-        self._printer = ResultPrinter(
-            printer, top_level_directory,
-            log_filename=log_filename,
-            strip_unittest_traceback=strip_unittest_traceback,
-            show_progress=show_progress)
+        self._printer = result_printer
         self._status_db = status_db
         self.status_counters = StatusCounters()
         self._error_test_specs = set()

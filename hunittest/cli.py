@@ -18,6 +18,7 @@ import hashlib
 from hunittest.line_printer import LinePrinter
 from hunittest.unittestresultlib import HTestResult
 from hunittest.unittestresultlib import StatusDB
+from hunittest.unittestresultlib import ResultPrinter
 from hunittest.filter_rules import RuleOperator
 from hunittest.filter_rules import FilterAction
 from hunittest.filter_rules import PatternType
@@ -394,14 +395,16 @@ def main(argv):
                 if options.collect_only:
                     printer.new_line()
                     return 0
-                result = HTestResult(printer,
-                                     top_level_directory,
+                result_printer = ResultPrinter(
+                    printer,
+                    top_level_directory,
+                    log_filename=log_filename,
+                    strip_unittest_traceback=options.strip_unittest_traceback,
+                    show_progress=not options.no_progress)
+                result = HTestResult(result_printer,
                                      total_tests=len(test_names),
                                      failfast=failfast,
-                                     log_filename=log_filename,
-                                     status_db=status_db,
-                                     strip_unittest_traceback=options.strip_unittest_traceback,
-                                     show_progress=not options.no_progress)
+                                     status_db=status_db)
                 with protect_cwd():
                     for test_name in test_names:
                         test_case = unittest.defaultTestLoader \

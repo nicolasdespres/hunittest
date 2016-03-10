@@ -365,7 +365,7 @@ class ResultPrinter:
             color = self.PASS_COLOR
         else:
             color = self.FAIL_COLOR
-        return color + "Run" + self.RESET
+        return color + "Ran" + self.RESET
 
     def print_summary(self,
             tests_run,

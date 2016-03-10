@@ -56,6 +56,14 @@ def fore_color_name(name):
 def back_color_name(name):
     return "back_" + name
 
+def isatty_term(self, stream=sys.stdout):
+    try:
+        fileno = stream.fileno()
+    except:
+        return False
+    else:
+        return os.isatty(fileno) and os.environ["TERM"] != "dumb"
+
 class TermInfo(object):
 
     def __init__(self, term_stream=sys.stdout, color_mode="auto"):
@@ -66,7 +74,7 @@ class TermInfo(object):
             self._set_back_color(cname, '')
         self.ansi_prefix_char = None
         ### Get capabilities
-        self.isatty = self._get_isatty_term(term_stream)
+        self.isatty = isatty_term(term_stream)
         # int capa
         for attr, capa, default in (("max_colors", "colors", None),
                                     ("lines", "lines", None),
@@ -125,14 +133,6 @@ class TermInfo(object):
         else:
             value = default
         setattr(self, attr, value)
-
-    def _get_isatty_term(self, stream):
-        try:
-            fileno = stream.fileno()
-        except:
-            return False
-        else:
-            return os.isatty(fileno) and os.environ["TERM"] != "dumb"
 
     def _init_hardcoded_colors(self):
         for i, cname in enumerate(ANSI_COLOR_NAMES):

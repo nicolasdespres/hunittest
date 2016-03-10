@@ -609,24 +609,46 @@ class RunProgress(BaseResult):
         self._tests_run += 1
         super().startTest(test)
 
+class StatusTracker(BaseResult):
+
+    def __init__(self, status_db, **kwds):
+        super().__init__(**kwds)
+        self._status_db = status_db
+        self.status_counters = StatusCounters()
+
+    def addOutcome(self, test, status, err=None, reason=None):
+        super().addOutcome(test, status, err, reason)
+        self.status_counters.inc(status)
+
+    def wasSuccessful(self):
+        return self.status_counters.is_successful()
+
+    @property
+    def status_scores(self):
+        return {status.value:self.status_counters.get(status)
+                for status in Status.stopped()}
+
+    def save_status(self):
+        return self._status_db.save(self.status_scores)
+
+    def load_status(self):
+        return self._status_db.load()
+
 class HTestResult(CheckCWDDidNotChanged,
                   Failfast,
                   RunProgress,
+                  StatusTracker,
                   TestExecStopwatch,
                   CaptureStdio):
 
     def __init__(self, result_printer,
-                 status_db=None,
                  **kwds):
         super().__init__(**kwds)
         self._printer = result_printer
-        self._status_db = status_db
-        self.status_counters = StatusCounters()
         self._error_test_specs = set()
         self._succeed_test_specs = set()
 
     def _print_outcome_message(self, test, test_status, err=None, reason=None):
-        self.status_counters.inc(test_status)
         test_name = get_test_name(test)
         if err is None:
             self._succeed_test_specs.add(test_name)
@@ -654,17 +676,14 @@ class HTestResult(CheckCWDDidNotChanged,
         self._print_outcome_message(test, status, err, reason)
 
     def print_summary(self):
-        prev_counters = self._load_status()
+        prev_counters = self.load_status()
         self._printer.print_summary(
             self._tests_run,
             prev_counters,
             self.status_counters,
             self.stopwatch.total_split_time,
             self.stopwatch.mean_split_time)
-        self._write_status()
-
-    def wasSuccessful(self):
-        return self.status_counters.is_successful()
+        self.save_status()
 
     def close_log_file(self):
         self._printer.close()
@@ -680,14 +699,3 @@ class HTestResult(CheckCWDDidNotChanged,
     @property
     def succeed_test_specs(self):
         return self._succeed_test_specs
-
-    @property
-    def status_scores(self):
-        return {status.value:self.status_counters.get(status)
-                for status in Status.stopped()}
-
-    def _write_status(self):
-        return self._status_db.save(self.status_scores)
-
-    def _load_status(self):
-        return self._status_db.load()

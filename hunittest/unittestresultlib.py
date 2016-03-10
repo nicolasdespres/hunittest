@@ -85,7 +85,7 @@ class _LogLinePrinter(object):
         if nl:
             self._file.write("\n")
 
-def _full_test_name(test):
+def get_test_name(test):
     """Return the full name of the given test object.
 
     A string of the form: pkg.mod.Class.test_method
@@ -213,7 +213,7 @@ class ResultPrinter:
             + formatter.format(msg) \
             + self.RESET
 
-    def _print_progress_message(self, full_test_name, test_status,
+    def _print_progress_message(self, test_name, test_status,
                                 status_counters, progress,
                                 mean_split_time, last_split_time):
         counters = {}
@@ -239,15 +239,15 @@ class ResultPrinter:
                 elapsed=timedelta_to_hstr(last_split_time))
         else:
             suffix = ""
-        self._printer.overwrite_message(prefix, full_test_name,
+        self._printer.overwrite_message(prefix, test_name,
                                         suffix, ellipse_index=1)
 
     def print_message(self, test, test_status, status_counters, progress,
                       mean_split_time, last_split_time,
                       err=None, reason=None):
-        full_test_name = _full_test_name(test)
+        test_name = get_test_name(test)
         if self._show_progress:
-            self._print_progress_message(full_test_name, test_status,
+            self._print_progress_message(test_name, test_status,
                                          status_counters, progress,
                                          mean_split_time, last_split_time)
         if err is not None:
@@ -274,11 +274,10 @@ class ResultPrinter:
         return filename.startswith(os.path.dirname(unittest.__file__))
 
     def _print_header(self, test, test_status):
-        full_test_name = _full_test_name(test)
-        msg = "{test_status}: {fullname}"\
-            .format(test_status=self.format_test_status(test_status,
-                                                        aligned=False),
-                    fullname=full_test_name)
+        test_name = get_test_name(test)
+        msg = "{status}: {name}"\
+            .format(status=self.format_test_status(test_status, aligned=False),
+                    name=test_name)
         self._hbar_len = len(strip_ansi_escape(msg))
         self._printer.log_overwrite_nl("-" * self._hbar_len)
         self._printer.log_overwrite_nl(msg)
@@ -324,10 +323,9 @@ class ResultPrinter:
 
     def _print_reason(self, test, test_status, reason):
         assert reason is not None
-        msg = "{test_status}: {fullname}: {reason}"\
-            .format(test_status=self.format_test_status(test_status,
-                                                        aligned=False),
-                    fullname=_full_test_name(test),
+        msg = "{status}: {name}: {reason}"\
+            .format(status=self.format_test_status(test_status, aligned=False),
+                    name=get_test_name(test),
                     reason=reason)
         self._printer.log_overwrite_nl(msg)
 
@@ -622,11 +620,11 @@ class HTestResult(CheckCWDDidNotChanged,
 
     def _print_outcome_message(self, test, test_status, err=None, reason=None):
         self.status_counters.inc(test_status)
-        full_test_name = _full_test_name(test)
+        test_name = get_test_name(test)
         if err is None:
-            self._succeed_test_specs.add(full_test_name)
+            self._succeed_test_specs.add(test_name)
         else:
-            self._error_test_specs.add(full_test_name)
+            self._error_test_specs.add(test_name)
         self._printer.print_message(test, test_status, self.status_counters,
                                     self.progress,
                                     self.stopwatch.mean_split_time,

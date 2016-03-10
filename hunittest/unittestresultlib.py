@@ -641,10 +641,34 @@ class StatusTracker(BaseResult):
     def load_status(self):
         return self._status_db.load()
 
+class ErrSuccTracker(BaseResult):
+
+    def __init__(self, **kwds):
+        super().__init__(**kwds)
+        self._error_test_specs = set()
+        self._succeed_test_specs = set()
+
+    def addOutcome(self, test, status, err=None, reason=None):
+        super().addOutcome(test, status, err, reason)
+        test_name = get_test_name(test)
+        if status.is_erroneous():
+            self._error_test_specs.add(test_name)
+        else:
+            self._succeed_test_specs.add(get_test_name)
+
+    @property
+    def error_test_specs(self):
+        return self._error_test_specs
+
+    @property
+    def succeed_test_specs(self):
+        return self._succeed_test_specs
+
 class HTestResult(CheckCWDDidNotChanged,
                   Failfast,
                   RunProgress,
                   StatusTracker,
+                  ErrSuccTracker,
                   TestExecStopwatch,
                   CaptureStdio):
 
@@ -652,15 +676,9 @@ class HTestResult(CheckCWDDidNotChanged,
                  **kwds):
         super().__init__(**kwds)
         self._printer = result_printer
-        self._error_test_specs = set()
-        self._succeed_test_specs = set()
 
     def _print_outcome_message(self, test, test_status, err=None, reason=None):
         test_name = get_test_name(test)
-        if err is None:
-            self._succeed_test_specs.add(test_name)
-        else:
-            self._error_test_specs.add(test_name)
         self._printer.print_message(test, test_status, self.status_counters,
                                     self.progress,
                                     self.stopwatch.mean_split_time,
@@ -691,11 +709,3 @@ class HTestResult(CheckCWDDidNotChanged,
             self.stopwatch.total_split_time,
             self.stopwatch.mean_split_time)
         self.save_status()
-
-    @property
-    def error_test_specs(self):
-        return self._error_test_specs
-
-    @property
-    def succeed_test_specs(self):
-        return self._succeed_test_specs

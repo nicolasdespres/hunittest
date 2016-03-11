@@ -199,6 +199,10 @@ class ResultPrinter:
         self.RESET = self._printer.term_info.reset_all
         self.TRACE_HL = self._printer.term_info.fore_white \
                         + self._printer.term_info.bold
+        self.reset()
+
+    def reset(self):
+        self._header_printed = False
 
     def status_color(self, status):
         return getattr(self, "{}_COLOR".format(status.value.upper()))
@@ -274,6 +278,8 @@ class ResultPrinter:
         return filename.startswith(os.path.dirname(unittest.__file__))
 
     def _print_header(self, test, test_status):
+        if self._header_printed:
+            return
         test_name = get_test_name(test)
         msg = "{status}: {name}"\
             .format(status=self.format_test_status(test_status, aligned=False),
@@ -281,6 +287,7 @@ class ResultPrinter:
         self._hbar_len = len(strip_ansi_escape(msg))
         self._printer.log_overwrite_nl("-" * self._hbar_len)
         self._printer.log_overwrite_nl(msg)
+        self._header_printed = True
 
     def _print_error(self, test, test_status, err):
         assert err is not None
@@ -345,10 +352,7 @@ class ResultPrinter:
     def print_ios(self, test, stdout_value, stderr_value):
         if not stdout_value and not stderr_value:
             return
-        if test._outcome is None or test._outcome.success:
-            # If the test pass the header was not printed yet by
-            # _print_error.
-            self._print_header(test, Status.PASS)
+        self._print_header(test, Status.PASS)
         self._print_io(test, stdout_value, "stdout")
         self._print_io(test, stderr_value, "stderr")
         if stdout_value or stderr_value:
@@ -687,6 +691,7 @@ class HTestResult(CheckCWDDidNotChanged,
     def stopTest(self, test):
         super().stopTest(test)
         self._printer.print_ios(test, self.stdout_value, self.stderr_value)
+        self._printer.reset()
 
     def addOutcome(self, test, status, err=None, reason=None):
         super().addOutcome(test, status, err, reason)

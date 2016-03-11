@@ -677,14 +677,6 @@ class HTestResult(CheckCWDDidNotChanged,
         super().__init__(**kwds)
         self._printer = result_printer
 
-    def _print_outcome_message(self, test, test_status, err=None, reason=None):
-        test_name = get_test_name(test)
-        self._printer.print_message(test, test_status, self.status_counters,
-                                    self.progress,
-                                    self.stopwatch.mean_split_time,
-                                    self.stopwatch.last_split_time,
-                                    err=err, reason=reason)
-
     def startTest(self, test):
         self._printer.print_message(test, Status.RUNNING, self.status_counters,
                                     self.progress,
@@ -698,7 +690,11 @@ class HTestResult(CheckCWDDidNotChanged,
 
     def addOutcome(self, test, status, err=None, reason=None):
         super().addOutcome(test, status, err, reason)
-        self._print_outcome_message(test, status, err, reason)
+        self._printer.print_message(test, status, self.status_counters,
+                                    self.progress,
+                                    self.stopwatch.mean_split_time,
+                                    self.stopwatch.last_split_time,
+                                    err=err, reason=reason)
 
     def print_summary(self):
         prev_counters = self.load_status()

@@ -26,6 +26,7 @@ Features
 * Fancy color if your terminal support it.
 * Convenient shell completion if you install argcomplete_.
 * Error are printed on the go (no need for ``-c/--catch`` equivalent).
+* Support parallel execution of test.
 * ``-f/--failfast`` option like in unittest_.
 * ``-q/--quiet`` option that truly prints nothing. Only the exit status
   tells you whether the test suite was successful.

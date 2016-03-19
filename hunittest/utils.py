@@ -7,6 +7,7 @@ import os
 import re
 from enum import Enum
 from contextlib import contextmanager
+import unittest
 
 
 def pyname_join(seq):
@@ -58,3 +59,8 @@ def safe_getcwd():
         return os.getcwd()
     except FileNotFoundError:
         return None
+
+def load_single_test_case(test_name):
+    test_suite = list(unittest.defaultTestLoader.loadTestsFromName(test_name))
+    assert len(test_suite) == 1
+    return test_suite[0]

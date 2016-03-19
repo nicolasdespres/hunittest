@@ -11,6 +11,9 @@ import os
 import re
 import unittest
 import json
+from enum import Enum
+from collections import namedtuple
+from datetime import timedelta
 
 from hunittest.line_printer import strip_ansi_escape
 from hunittest.timedeltalib import timedelta_to_hstr
@@ -18,15 +21,7 @@ from hunittest.timedeltalib import timedelta_to_unit
 from hunittest.stopwatch import StopWatch
 from hunittest.utils import mkdir_p
 from hunittest.utils import safe_getcwd
-
-def failfast_decorator(method):
-    @functools.wraps(method)
-    def inner(self, test, err=None):
-        if getattr(self, 'failfast', False):
-            self._last_traceback = err[2]
-            self.stop()
-        return method(self, test, err)
-    return inner
+from hunittest.utils import load_single_test_case
 
 class _LogLinePrinter(object):
     """Proxy over a LinePrinter.
@@ -93,41 +88,124 @@ class _LogLinePrinter(object):
         if nl:
             self._file.write("\n")
 
-class HTestResult(object):
+def get_test_name(test):
+    """Return the full name of the given test object.
 
-    ALL_STATUS = "pass fail error skip xfail xpass".split()
-    _STATUS_MAXLEN = max(len(s) for s in ALL_STATUS+["running"])
+    A string of the form: pkg.mod.Class.test_method
+    """
+    # HTestResultServer may pass test name instead of test object.
+    if isinstance(test, str):
+        return test
+    return ".".join((
+        test.__module__,
+        type(test).__name__,
+        test._testMethodName,
+    ))
+
+class StatusDB:
+    """A tiny DB to store status counters.
+
+    Status counters are the number of test falling in each category: pass, fail,
+    error, xpass, etc...
+
+    It is used to show the difference between to similar run.
+    """
+
+    def __init__(self, filename):
+        self.filename = filename
+
+    def save(self, status_scores):
+        if self.filename is None:
+            return
+        mkdir_p(os.path.dirname(self.filename))
+        with open(self.filename, "w") as stream:
+            json.dump(status_scores, stream)
+
+    def load(self):
+        if self.filename is None:
+            return
+        try:
+            with open(self.filename) as stream:
+                return json.load(stream)
+        except FileNotFoundError:
+            return
+
+class Status(Enum):
+    """Possible test status.
+    """
+
+    PASS = "pass"
+    FAIL = "fail"
+    ERROR = "error"
+    SKIP = "skip"
+    XFAIL = "xfail"
+    XPASS = "xpass"
+    RUNNING = "running"
+
+    @classmethod
+    def stopped(cls):
+        """Yield all status representing a stopped test."""
+        for status in cls:
+            if status is not cls.RUNNING:
+                yield status
+
+    def is_erroneous(self):
+        """Return whether this status is considered as an erroneous test status.
+        """
+        return self is self.FAIL or self is self.ERROR or self is self.XPASS
+
+class StatusCounters:
+    """Hold test counters for each possible status.
+    """
 
     @staticmethod
-    def status_counter_name(status):
-        return "_{}_count".format(status)
+    def name(status):
+        return "{}_count".format(status.value)
 
-    def __init__(self, printer, total_tests, top_level_directory,
-                 failfast=False,
+    def __init__(self):
+        for status in Status.stopped():
+            self.set(status, 0)
+
+    def get(self, status):
+        return getattr(self, self.name(status))
+
+    def set(self, status, value):
+        setattr(self, self.name(status), value)
+
+    def inc(self, status, inc=1):
+        v = self.get(status)
+        self.set(status, v+inc)
+
+    def is_successful(self):
+        return self.fail_count \
+            == self.error_count \
+            == self.xpass_count \
+            == 0
+
+def _format_exception(exc_type, exc_value, exc_traceback):
+    """Own customization of traceback.format_exception().
+
+    When the result comes from another process the traceback is already
+    serialized thus we just have to return it.
+    """
+    # HTestResultServer passes serialized traceback.
+    if isinstance(exc_traceback, list):
+        return exc_traceback
+    return traceback.format_exception(exc_type, exc_value, exc_traceback)
+
+class ResultPrinter:
+
+    _STATUS_MAXLEN = max(len(s.value) for s in Status)
+
+    def __init__(self, printer, top_level_directory,
                  log_filename=None,
-                 status_filename=None,
                  strip_unittest_traceback=False,
                  show_progress=True):
-        self._failfast = failfast
-        self._tests_run = 0
-        self._should_stop = False
         self._printer = _LogLinePrinter(printer, log_filename)
-        self._total_tests = total_tests
         self._top_level_directory = top_level_directory
-        self._status_filename = status_filename
         self._strip_unittest_traceback=strip_unittest_traceback
         self._show_progress = show_progress
-        for status in self.ALL_STATUS:
-            self._set_status_counter(status, 0)
-        self._stopwatch = StopWatch()
-        self._original_stdout = sys.stdout
-        self._original_stderr = sys.stderr
-        self._stdout_buffer = io.StringIO()
-        self._stderr_buffer = io.StringIO()
         self._hbar_len = None
-        self._last_traceback = None
-        self._error_test_specs = set()
-        self._succeed_test_specs = set()
         self.PASS_COLOR = self._printer.term_info.fore_green
         self.FAIL_COLOR = self._printer.term_info.fore_red
         self.SKIP_COLOR = self._printer.term_info.fore_blue
@@ -138,82 +216,16 @@ class HTestResult(object):
         self.RESET = self._printer.term_info.reset_all
         self.TRACE_HL = self._printer.term_info.fore_white \
                         + self._printer.term_info.bold
+        self.reset()
 
-    @property
-    def shouldStop(self):
-        return self._should_stop
-
-    @property
-    def buffer(self):
-        return True
-
-    @buffer.setter
-    def buffer(self, value):
-        if not value:
-            raise NotImplementedError("we cannot support un-buffered IO.")
-
-    @property
-    def failfast(self):
-        return self._failfast
-
-    @property
-    def testsRun(self):
-        return self._tests_run
-
-    @property
-    def total_tests(self):
-        return self._total_tests
-
-    @property
-    def progress(self):
-        return self._tests_run / self._total_tests
-
-    @property
-    def pass_count(self):
-        return self._pass_count
-
-    @property
-    def fail_count(self):
-        return self._fail_count
-
-    @property
-    def skip_count(self):
-        return self._skip_count
-
-    @property
-    def xfail_count(self):
-        return self._xfail_count
-
-    @property
-    def xpass_count(self):
-        return self._xpass_count
-
-    @property
-    def error_count(self):
-        return self._error_count
-
-    def full_test_name(self, test):
-        return ".".join((
-            test.__module__,
-            type(test).__name__,
-            test._testMethodName,
-        ))
+    def reset(self):
+        self._header_printed = False
 
     def status_color(self, status):
-        return getattr(self, "{}_COLOR".format(status.upper()))
-
-    def get_status_counter(self, status):
-        return getattr(self, self.status_counter_name(status))
-
-    def _set_status_counter(self, status, value):
-        setattr(self, self.status_counter_name(status), value)
-
-    def _inc_status_counter(self, status, inc=1):
-        v = self.get_status_counter(status)
-        self._set_status_counter(status, v+inc)
+        return getattr(self, "{}_COLOR".format(status.value.upper()))
 
     def format_test_status(self, status, aligned=True):
-        msg = status.upper()
+        msg = status.value.upper()
         if aligned:
             formatter = "{{:^{:d}}}".format(self._STATUS_MAXLEN)
         else:
@@ -222,46 +234,44 @@ class HTestResult(object):
             + formatter.format(msg) \
             + self.RESET
 
-    def _print_progress_message(self, full_test_name, test_status):
+    def _print_progress_message(self, test_name, test_status,
+                                status_counters, progress,
+                                mean_split_time, last_split_time):
         counters = {}
         counter_formats = []
-        for status in self.ALL_STATUS:
-            counters[status] = self.status_color(status) \
-                               + str(self.get_status_counter(status)) \
-                               + self.RESET
-            counter_formats.append("{{{s}}}".format(s=status))
+        for status in Status.stopped():
+            counters[status.value] = self.status_color(status) \
+                                     + str(status_counters.get(status)) \
+                                     + self.RESET
+            counter_formats.append("{{{s}}}".format(s=status.value))
         prefix_formatter = "[{progress:>4.0%}|{mean_split_time:.2f}ms|" \
                            + "|".join(f for f in counter_formats) \
                            + "] {test_status}: "
         suffix_formatter = " ({elapsed})"
         prefix = prefix_formatter.format(
-            progress=self.progress,
+            progress=progress,
             test_status=self.format_test_status(test_status),
-            mean_split_time=timedelta_to_unit(self._stopwatch.mean_split_time,
+            mean_split_time=timedelta_to_unit(mean_split_time,
                                               "ms"),
             **counters)
-        if test_status != "running" \
-           and self._stopwatch.last_split_time is not None:
+        if test_status != Status.RUNNING \
+           and last_split_time is not None:
             suffix = suffix_formatter.format(
-                elapsed=timedelta_to_hstr(self._stopwatch.last_split_time))
+                elapsed=timedelta_to_hstr(last_split_time))
         else:
             suffix = ""
-        self._printer.overwrite_message(prefix, full_test_name,
+        self._printer.overwrite_message(prefix, test_name,
                                         suffix, ellipse_index=1)
 
-    def _print_outcome_message(self, test, test_status, err=None, reason=None):
-        self._stopwatch.split()
-        self._inc_status_counter(test_status)
-        self._print_message(test, test_status, err=err, reason=reason)
-
-    def _print_message(self, test, test_status, err=None, reason=None):
-        full_test_name = self.full_test_name(test)
+    def print_message(self, test, test_status, status_counters, progress,
+                      mean_split_time, last_split_time,
+                      err=None, reason=None):
+        test_name = get_test_name(test)
         if self._show_progress:
-            self._print_progress_message(full_test_name, test_status)
-        if err is None:
-            self._succeed_test_specs.add(full_test_name)
-        else:
-            self._error_test_specs.add(full_test_name)
+            self._print_progress_message(test_name, test_status,
+                                         status_counters, progress,
+                                         mean_split_time, last_split_time)
+        if err is not None:
             self._print_error(test, test_status, err)
         if reason is not None:
             self._print_reason(test, test_status, reason)
@@ -285,22 +295,23 @@ class HTestResult(object):
         return filename.startswith(os.path.dirname(unittest.__file__))
 
     def _print_header(self, test, test_status):
-        full_test_name = self.full_test_name(test)
-        msg = "{test_status}: {fullname}"\
-            .format(test_status=self.format_test_status(test_status,
-                                                        aligned=False),
-                    fullname=full_test_name)
+        if self._header_printed:
+            return
+        test_name = get_test_name(test)
+        msg = "{status}: {name}"\
+            .format(status=self.format_test_status(test_status, aligned=False),
+                    name=test_name)
         self._hbar_len = len(strip_ansi_escape(msg))
         self._printer.log_overwrite_nl("-" * self._hbar_len)
         self._printer.log_overwrite_nl(msg)
-
+        self._header_printed = True
 
     def _print_error(self, test, test_status, err):
         assert err is not None
         self._print_header(test, test_status)
         self._printer.log_write_nl("-" * self._hbar_len)
         ### Print exception traceback
-        all_lines = traceback.format_exception(*err)
+        all_lines = _format_exception(*err)
         for i in range(len(all_lines)-1):
             lines = all_lines[i]
             is_user_filename = self._is_user_filename(lines)
@@ -336,10 +347,9 @@ class HTestResult(object):
 
     def _print_reason(self, test, test_status, reason):
         assert reason is not None
-        msg = "{test_status}: {fullname}: {reason}"\
-            .format(test_status=self.format_test_status(test_status,
-                                                        aligned=False),
-                    fullname=self.full_test_name(test),
+        msg = "{status}: {name}: {reason}"\
+            .format(status=self.format_test_status(test_status, aligned=False),
+                    name=get_test_name(test),
                     reason=reason)
         self._printer.log_overwrite_nl(msg)
 
@@ -356,47 +366,94 @@ class HTestResult(object):
         for line in output.splitlines():
             self._printer.log_write_nl(line)
 
-    def _print_ios(self, test, stdout_value, stderr_value):
+    def print_ios(self, test, stdout_value, stderr_value):
         if not stdout_value and not stderr_value:
             return
-        if test._outcome is None or test._outcome.success:
-            # If the test pass the header was not printed yet by
-            # _print_error.
-            self._print_header(test, "pass")
+        self._print_header(test, Status.PASS)
         self._print_io(test, stdout_value, "stdout")
         self._print_io(test, stderr_value, "stderr")
         if stdout_value or stderr_value:
             self._printer.log_write_nl("-" * self._hbar_len)
 
-    def startTest(self, test):
-        self._tests_run += 1
-        if not self._stopwatch.is_started:
-            self._stopwatch.start()
-        self._print_message(test, "running")
-        self.old_cwd = safe_getcwd()
-        self._setupStdout()
+    def _format_run_status(self, status_counters):
+        if status_counters.is_successful():
+            color = self.PASS_COLOR
+        else:
+            color = self.FAIL_COLOR
+        return color + "Ran" + self.RESET
 
-    def _setupStdout(self):
-        sys.stdout = self._stdout_buffer
-        sys.stderr = self._stderr_buffer
+    def print_summary(self,
+                      tests_run,
+                      prev_status_counters,
+                      status_counters,
+                      total_time,
+                      mean_split_time,
+                      wall_time):
+        ### Print main summary
+        formatter = "{run_status} {total_count} tests in "\
+                    "{total_time} (avg: {mean_split_time}; "\
+                    "total: {wall_time}; speedup: {speedup:.2f})"
+        msg = formatter.format(
+            run_status=self._format_run_status(status_counters),
+            total_count=tests_run,
+            total_time=timedelta_to_hstr(total_time),
+            mean_split_time=timedelta_to_hstr(mean_split_time),
+            wall_time=timedelta_to_hstr(wall_time),
+            speedup=total_time/wall_time,
+        )
+        self._printer.log_overwrite_nl(msg)
+        ### Print detailed summary
+        counters = {}
+        counter_formats = []
+        for status in Status.stopped():
+            count = status_counters.get(status)
+            if prev_status_counters is None:
+                count_delta = 0
+            else:
+                count_delta = count - prev_status_counters[status.value]
+            if count > 0 or count_delta != 0:
+                s = self.status_color(status) + str(count)
+                if count_delta != 0:
+                    s += "({:+d})".format(count_delta)
+                s += self.RESET
+                counters[status.value] = s
+                counter_formats.append("{{{s}}} {s}".format(s=status.value))
+        # Print detailed summary only if there were tests.
+        if counter_formats:
+            msg = " ".join(counter_formats).format(**counters)
+            self._printer.log_write_nl(msg)
+
+    def close(self):
+        self._printer.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.close()
+        return False
+
+class BaseResult:
+    """Root result object used has base class for super delegation chain.
+    """
+
+    def __init__(self):
+        self._should_stop = False
+
+    @property
+    def shouldStop(self):
+        return self._should_stop
+
+    def stop(self):
+        self._should_stop = True
+
+    def startTest(self, test):
+        # the delegation chain stops here
+        assert not hasattr(super(), 'startTest')
 
     def stopTest(self, test):
-        new_cwd = safe_getcwd()
-        if self.old_cwd is None or new_cwd is None \
-           or self.old_cwd != new_cwd:
-            raise RuntimeError("working directory changed during test")
-        stdout_value = self._stdout_buffer.getvalue()
-        stderr_value = self._stderr_buffer.getvalue()
-        self._restoreStdout()
-        self._print_ios(test, stdout_value, stderr_value)
-
-    def _restoreStdout(self):
-        sys.stdout = self._original_stdout
-        sys.stderr = self._original_stderr
-        self._stdout_buffer.seek(0)
-        self._stdout_buffer.truncate()
-        self._stderr_buffer.seek(0)
-        self._stderr_buffer.truncate()
+        # the delegation chain stops here
+        assert not hasattr(super(), 'stopTest')
 
     def startTestRun(self):
         # print("startTestRun")
@@ -410,88 +467,237 @@ class HTestResult(object):
         assert False
 
     def addSuccess(self, test):
-        # print("addSuccess", repr(test))
-        self._print_outcome_message(test, "pass")
+        # the delegation chain stops here
+        assert not hasattr(super(), 'stopTest')
+        self.addOutcome(test, Status.PASS)
 
-    @failfast_decorator
     def addFailure(self, test, err):
-        # print("addFailure", repr(test), repr(err))
-        self._print_outcome_message(test, "fail", err=err)
+        # the delegation chain stops here
+        assert not hasattr(super(), 'stopTest')
+        self.addOutcome(test, Status.FAIL, err=err)
 
-    @failfast_decorator
     def addError(self, test, err):
-        # print("addError", repr(test), repr(err))
-        self._print_outcome_message(test, "error", err=err)
+        # the delegation chain stops here
+        assert not hasattr(super(), 'stopTest')
+        self.addOutcome(test, Status.ERROR, err=err)
 
     def addSkip(self, test, reason):
-        self._print_outcome_message(test, "skip", reason=reason)
+        # the delegation chain stops here
+        assert not hasattr(super(), 'stopTest')
+        self.addOutcome(test, Status.SKIP, reason=reason)
 
     def addExpectedFailure(self, test, err):
-        self._print_outcome_message(test, "xfail")
+        # the delegation chain stops here
+        assert not hasattr(super(), 'stopTest')
+        self.addOutcome(test, Status.XFAIL, err=err)
 
-    @failfast_decorator
-    def addUnexpectedSuccess(self, test, err=None):
-        self._print_outcome_message(test, "xpass")
+    def addUnexpectedSuccess(self, test):
+        # the delegation chain stops here
+        assert not hasattr(super(), 'stopTest')
+        self.addOutcome(test, Status.XPASS)
 
-    def _format_run_status(self):
-        if self.wasSuccessful():
-            color = self.PASS_COLOR
-        else:
-            color = self.FAIL_COLOR
-        return color + "Run" + self.RESET
+    def addOutcome(self, test, status, err=None, reason=None):
+        """Called by all outcome callback.
 
-    def print_summary(self):
-        prev_counters = self._load_status()
-        ### Print main summary
-        formatter = "{run_status} {total_count} tests in "\
-                    "{total_time} (avg: {mean_split_time})"
-        msg = formatter.format(
-            run_status=self._format_run_status(),
-            total_count=self._total_tests,
-            total_time=timedelta_to_hstr(self._stopwatch.total_split_time),
-            mean_split_time=timedelta_to_hstr(self._stopwatch.mean_split_time))
-        self._printer.log_overwrite_nl(msg)
-        ### Print detailed summary
-        counters = {}
-        counter_formats = []
-        for status in self.ALL_STATUS:
-            count = self.get_status_counter(status)
-            if prev_counters is None:
-                count_delta = 0
-            else:
-                count_delta = count - prev_counters[status]
-            if count > 0 or count_delta != 0:
-                s = self.status_color(status) + str(count)
-                if count_delta != 0:
-                    s += "({:+d})".format(count_delta)
-                s += self.RESET
-                counters[status] = s
-                counter_formats.append("{{{s}}} {s}".format(s=status))
-        # Print detailed summary only if there were tests.
-        if counter_formats:
-            msg = " ".join(counter_formats).format(**counters)
-            self._printer.log_write_nl(msg)
-        self._write_status()
+        Introduced to ease addition of behavior for all possible test outcomes.
+        """
+        # the delegation chain stops here
+        assert not hasattr(super(), 'stopTest')
 
-    def stop(self):
-        self._should_stop = True
+class Failfast(BaseResult):
+    """Stop the test suite as soon as a test failed.
 
-    def wasSuccessful(self):
-        return self.fail_count \
-            == self.error_count \
-            == self.xpass_count \
-            == 0
+    Use it as a mix-in of a unittest's result class.
+    """
 
-    def close_log_file(self):
-        self._printer.close()
+    def __init__(self, failfast=False, **kwds):
+        super().__init__(**kwds)
+        self._failfast = failfast
+        self._last_traceback = None
 
     @property
-    def log_filename(self):
-        return self._printer.filename
+    def failfast(self):
+        return self._failfast
 
     @property
     def last_traceback(self):
         return self._last_traceback
+
+    def addOutcome(self, test, status, err=None, reason=None):
+        super().addOutcome(test, status, err, reason)
+        if self._failfast and status.is_erroneous():
+            if err is not None:
+                self._last_traceback = err[2]
+            self.stop()
+
+class CheckCWDDidNotChanged(BaseResult):
+    """Check whether current working directory has changed after test execution.
+
+    Use it as a mix-in of a unittest's result class.
+    """
+
+    def __init__(self, **kwds):
+        super().__init__(**kwds)
+
+    def startTest(self, test):
+        self.old_cwd = safe_getcwd()
+        super().startTest(test)
+
+    def stopTest(self, test):
+        super().stopTest(test)
+        new_cwd = safe_getcwd()
+        if self.old_cwd is None or new_cwd is None \
+           or self.old_cwd != new_cwd:
+            raise RuntimeError("working directory changed during test")
+
+class CaptureStdio(BaseResult):
+    """Capture and store test's stdout and stderr.
+
+    Use it as a mix-in of a unittest's result class.
+    """
+
+    def __init__(self, buffer=True, **kwds):
+        super().__init__(**kwds)
+        self.buffer = buffer
+        self._original_stdout = sys.stdout
+        self._original_stderr = sys.stderr
+        self._stdout_buffer = io.StringIO()
+        self._stderr_buffer = io.StringIO()
+        self._stdout_value = None
+        self._stderr_value = None
+
+    def startTest(self, test):
+        if self.buffer:
+            self._setupStdout()
+        super().startTest(test)
+
+    def stopTest(self, test):
+        super().stopTest(test)
+        if self.buffer:
+            self._stdout_value = self._stdout_buffer.getvalue()
+            self._stderr_value = self._stderr_buffer.getvalue()
+            self._restoreStdout()
+
+    def _setupStdout(self):
+        sys.stdout = self._stdout_buffer
+        sys.stderr = self._stderr_buffer
+        self._stdout_value = None
+        self._stderr_value = None
+
+    def _restoreStdout(self):
+        sys.stdout = self._original_stdout
+        sys.stderr = self._original_stderr
+        self._stdout_buffer.seek(0)
+        self._stdout_buffer.truncate()
+        self._stderr_buffer.seek(0)
+        self._stderr_buffer.truncate()
+
+    @property
+    def stdout_value(self):
+        return self._stdout_value
+
+    @property
+    def stderr_value(self):
+        return self._stderr_value
+
+class TestExecStopwatch(BaseResult):
+    """Time test execution using a stopwatch.
+
+    Use it as a mix-in of a unittest's result class.
+    """
+
+    def __init__(self, **kwds):
+        super().__init__(**kwds)
+        self.stopwatch = StopWatch()
+
+    def startTest(self, test):
+        if not self.stopwatch.is_started:
+            self.stopwatch.start()
+        super().startTest(test)
+
+    def addOutcome(self, test, status, err=None, reason=None):
+        self.stopwatch.split()
+        super().addOutcome(test, status, err, reason)
+
+class RunProgress(BaseResult):
+    """Count running and ran tests.
+
+    Use it as a mix-in of a unittest's result class.
+    """
+
+    def __init__(self, total_tests, **kwds):
+        super().__init__(**kwds)
+        self._tests_run = 0
+        self._total_tests = total_tests
+
+    @property
+    def testsRun(self):
+        return self._tests_run
+
+    @property
+    def total_tests(self):
+        return self._total_tests
+
+    @property
+    def progress(self):
+        return self._tests_run / self._total_tests
+
+    def startTest(self, test):
+        self._tests_run += 1
+        super().startTest(test)
+
+class StatusTracker(BaseResult):
+    """Count test for each status.
+
+    In addition, it allow to store/retrieved the statistics from a database.
+
+    Use it as a mix-in of a unittest's result class.
+    """
+
+    def __init__(self, status_db, **kwds):
+        super().__init__(**kwds)
+        self._status_db = status_db
+        self.status_counters = StatusCounters()
+
+    def addOutcome(self, test, status, err=None, reason=None):
+        super().addOutcome(test, status, err, reason)
+        self.status_counters.inc(status)
+
+    def wasSuccessful(self):
+        return self.status_counters.is_successful()
+
+    @property
+    def status_scores(self):
+        return {status.value:self.status_counters.get(status)
+                for status in Status.stopped()}
+
+    def save_status(self):
+        return self._status_db.save(self.status_scores)
+
+    def load_status(self):
+        return self._status_db.load()
+
+class ErrSuccTracker(BaseResult):
+    """List erroneous/succesful tests.
+
+    Erroneous tests are determined using Status.is_erroneous. Successful tests
+    are all tests that are not erroneous.
+
+    Use it as a mix-in of a unittest's result class.
+    """
+
+    def __init__(self, **kwds):
+        super().__init__(**kwds)
+        self._error_test_specs = set()
+        self._succeed_test_specs = set()
+
+    def addOutcome(self, test, status, err=None, reason=None):
+        super().addOutcome(test, status, err, reason)
+        test_name = get_test_name(test)
+        if status.is_erroneous():
+            self._error_test_specs.add(test_name)
+        else:
+            self._succeed_test_specs.add(get_test_name)
 
     @property
     def error_test_specs(self):
@@ -501,23 +707,220 @@ class HTestResult(object):
     def succeed_test_specs(self):
         return self._succeed_test_specs
 
+class Walltime(BaseResult):
+    """Compute the whole execution time of the test suite.
+
+    This is not the sum of the execution time of each test. It is useful
+    to measure the speedup of running test in parallel.
+
+    Use it as a mix-in of a unittest's result class.
+    """
+
+    def __init__(self, **kwds):
+        super().__init__(**kwds)
+        self._walltime_watch = StopWatch()
+
     @property
-    def status_scores(self):
-        return {status:self.get_status_counter(status)
-                for status in self.ALL_STATUS}
+    def walltime(self):
+        return self._walltime_watch.total_time
 
-    def _write_status(self):
-        if self._status_filename is None:
-            return
-        mkdir_p(os.path.dirname(self._status_filename))
-        with open(self._status_filename, "w") as stream:
-            json.dump(self.status_scores, stream)
+    def startTest(self, test):
+        if not self._walltime_watch.is_started:
+            self._walltime_watch.start()
+        super().startTest(test)
 
-    def _load_status(self):
-        if self._status_filename is None:
+class HTestResult(Walltime,
+                  CheckCWDDidNotChanged,
+                  Failfast,
+                  RunProgress,
+                  StatusTracker,
+                  ErrSuccTracker,
+                  TestExecStopwatch,
+                  CaptureStdio):
+    """Result class for single process runner.
+
+    Its interface is compatible with unittest.TestResult.
+    """
+
+    def __init__(self, result_printer,
+                 **kwds):
+        super().__init__(**kwds)
+        self._printer = result_printer
+
+    def startTest(self, test):
+        self._printer.print_message(test, Status.RUNNING, self.status_counters,
+                                    self.progress,
+                                    self.stopwatch.mean_split_time,
+                                    self.stopwatch.last_split_time)
+        super().startTest(test)
+
+    def stopTest(self, test):
+        super().stopTest(test)
+        self._printer.print_ios(test, self.stdout_value, self.stderr_value)
+        self._printer.reset()
+
+    def addOutcome(self, test, status, err=None, reason=None):
+        super().addOutcome(test, status, err, reason)
+        self._printer.print_message(test, status, self.status_counters,
+                                    self.progress,
+                                    self.stopwatch.mean_split_time,
+                                    self.stopwatch.last_split_time,
+                                    err=err, reason=reason)
+
+    def print_summary(self):
+        prev_counters = self.load_status()
+        self._printer.print_summary(
+            self._tests_run,
+            prev_counters,
+            self.status_counters,
+            self.stopwatch.total_split_time,
+            self.stopwatch.mean_split_time,
+            self.walltime)
+        self.save_status()
+
+# Message representing the result of test.
+ResultMsg = namedtuple("ResultMsg",
+                       ("test_name",   # The complete spec of the test.
+                        "status",      # The test status.
+                        "error",       # An exception raised during test
+                                       # execution represented as a tuple
+                                       # similar to the one returned by
+                                       # sys.exc_info(). The last obj is a
+                                       # serialized traceback.
+                        "reason",      # A string containing the reason why
+                                       # a test has been skipped.
+                        "total_time",  # The total execution time of a test.
+                        "stdout",      # The stdout produced by the test.
+                        "stderr"))     # The stderr produced by the test.
+
+class HTestResultClient(CheckCWDDidNotChanged,
+                        CaptureStdio,
+                        TestExecStopwatch):
+    """Client side of result class used by the multi-process runner.
+
+    An instance of this class run in each worker process. The outcome of each
+    test is sent back to the master process in the form of ResultMsg object.
+
+    It partially implements the unittest.TestResult interface.
+    """
+
+    def __init__(self, worker_id, conn):
+        super().__init__()
+        self._worker_id = worker_id
+        self._conn = conn
+        self._result_attrs = None
+
+    def stopTest(self, test):
+        super().stopTest(test)
+        self._send_outcome()
+
+    def _send_outcome(self):
+        assert self._result_attrs is not None
+        msg = ResultMsg(stdout=self.stdout_value,
+                        stderr=self.stderr_value,
+                        **self._result_attrs)
+        self._conn.send((self._worker_id, msg))
+        self._result_attrs = None
+
+    def addOutcome(self, test, status, err=None, reason=None):
+        super().addOutcome(test, status, err, reason)
+        self._save_result(test, status, err, reason)
+
+    def _save_result(self, test, status, err=None, reason=None):
+        if err is not None:
+            error = (err[0], err[1], traceback.format_exception(*err))
+        else:
+            error = None
+        self._result_attrs = dict(
+            test_name=get_test_name(test),
+            status=status,
+            error=error,
+            reason=reason,
+            total_time=self.stopwatch.last_split_time,
+        )
+
+class HTestResultServer(Walltime,
+                        RunProgress,
+                        Failfast,
+                        StatusTracker,
+                        ErrSuccTracker):
+    """Server side of result class used by the multi-process runner.
+
+    An instance of this class run in the master process.
+    The runner calls the process_result() when it receives a message from a
+    worker.
+
+    It partially implements the unittest.TestResult interface.
+    """
+
+    def __init__(self, result_printer, **kwds):
+        super().__init__(**kwds)
+        self._printer = result_printer
+        # The last result message received.
+        self._last_result_msg = None
+        # Store the sum of the execution time of each finished tests.
+        self._total_split_time = timedelta(0)
+
+    def process_result(self, result_msg):
+        ### Update internal state.
+        self._last_result_msg = result_msg
+        self._total_split_time += self.last_split_time
+        ### Dispatch handling of the received message.
+        self.addOutcome(result_msg.test_name, result_msg.status,
+                        err=result_msg.error,
+                        reason=result_msg.reason)
+        self.stopTest(result_msg.test_name)
+
+    def startTest(self, test):
+        self._printer.print_message(test, Status.RUNNING, self.status_counters,
+                                    self.progress,
+                                    self.mean_split_time,
+                                    self.last_split_time)
+        super().startTest(test)
+
+    def stopTest(self, test):
+        assert self._last_result_msg is not None
+        super().stopTest(test)
+        self._printer.print_ios(test,
+                                self._last_result_msg.stdout,
+                                self._last_result_msg.stderr)
+        self._printer.reset()
+
+    def addOutcome(self, test, status, err=None, reason=None):
+        assert self._last_result_msg is not None
+        super().addOutcome(test, status, err, reason)
+        self._printer.print_message(test, status, self.status_counters,
+                                    self.progress,
+                                    self.mean_split_time,
+                                    self.last_split_time,
+                                    err=err, reason=reason)
+
+    def print_summary(self):
+        prev_counters = self.load_status()
+        self._printer.print_summary(
+            self._tests_run,
+            prev_counters,
+            self.status_counters,
+            self.total_split_time,
+            self.mean_split_time,
+            self.walltime)
+        self.save_status()
+
+    @property
+    def last_split_time(self):
+        # The last split time in multiprocess mode is the total execution
+        # time of the test that just finished. For the first test we return
+        # None as Stopwatch.last_split_time() does.
+        if self._last_result_msg is None:
             return
-        try:
-            with open(self._status_filename) as stream:
-                return json.load(stream)
-        except FileNotFoundError:
-            return
+        return self._last_result_msg.total_time
+
+    @property
+    def mean_split_time(self):
+        if self.testsRun == 0:
+            return timedelta(0)
+        return self.total_split_time / self.testsRun
+
+    @property
+    def total_split_time(self):
+        return self._total_split_time

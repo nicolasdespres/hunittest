@@ -6,7 +6,6 @@
 import sys
 import argparse
 import os
-import unittest
 import operator
 import time
 from textwrap import dedent
@@ -14,9 +13,13 @@ import subprocess
 import re
 import shutil
 import hashlib
+import multiprocessing
 
 from hunittest.line_printer import LinePrinter
 from hunittest.unittestresultlib import HTestResult
+from hunittest.unittestresultlib import HTestResultServer
+from hunittest.unittestresultlib import StatusDB
+from hunittest.unittestresultlib import ResultPrinter
 from hunittest.filter_rules import RuleOperator
 from hunittest.filter_rules import FilterAction
 from hunittest.filter_rules import PatternType
@@ -30,6 +33,8 @@ from hunittest.utils import AutoEnum
 from hunittest.utils import mkdir_p
 from hunittest.utils import protect_cwd
 from hunittest import envar
+from hunittest.runner import run_monoproc_tests
+from hunittest.runner import run_concurrent_tests
 
 try:
     import argcomplete
@@ -187,7 +192,7 @@ def maybe_spawn_pager(options, log_filename, isatty=True):
         raise ValueError("invalid pager option: {}".format(options.pager))
 
 def is_pdb_on(options):
-    return not options.quiet and options.pdb
+    return not options.quiet and options.njobs <= 0 and options.pdb
 
 def write_error_test_specs(result):
     filename = get_error_filename()
@@ -302,13 +307,22 @@ def build_cli():
     parser.add_argument(
         "-q", "--quiet",
         action="store_true",
-        help="Print nothing. Exit status is the outcome.")
+        help="Print nothing. Exit status is the outcome. (disable --pdb)")
     parser.add_argument(
         "-t", "--top-level-directory",
         type=top_level_directory_param,
         action="store",
         default=os.getcwd(),
         help="Top level directory of project")
+    parser.add_argument(
+        "-j", "--jobs",
+        type=int,
+        dest="njobs",
+        action="store",
+        default=multiprocessing.cpu_count(),
+        help="Maximum number of tests run concurrently. "
+        "(<= 0 means tests are run in same process; "
+        "disable --pdb)")
     # TODO(Nicolas Despres): Introduce a ColorMode enumeration
     parser.add_argument(
         "-C", "--color",
@@ -376,12 +390,19 @@ def main(argv):
     test_specs = options.test_specs
     if not test_specs:
         test_specs = list(list_packages_from(top_level_directory))
-    isatty = False if options.verbose else None
     failfast = options.failfast or options.pdb
     log_filename = get_log_filename()
+    status_db = StatusDB(get_status_filename(options))
     result = None
-    with LinePrinter(isatty=isatty, quiet=options.quiet,
-                     color_mode=options.color) as printer:
+    with LinePrinter(quiet=options.quiet,
+                     color_mode=options.color,
+                     verbose=options.verbose) as printer, \
+         ResultPrinter(
+             printer,
+             top_level_directory,
+             log_filename=log_filename,
+             strip_unittest_traceback=options.strip_unittest_traceback,
+             show_progress=not options.no_progress) as result_printer:
         try:
             with CoverageInstrument(options.coverage_html) as cov_inst:
                 test_names = reported_collect(printer, test_specs,
@@ -392,17 +413,20 @@ def main(argv):
                 if options.collect_only:
                     printer.new_line()
                     return 0
-                test_suite = unittest.defaultTestLoader \
-                                     .loadTestsFromNames(test_names)
-                result = HTestResult(printer, len(test_names),
-                                     top_level_directory,
-                                     failfast=failfast,
-                                     log_filename=log_filename,
-                                     status_filename=get_status_filename(options),
-                                     strip_unittest_traceback=options.strip_unittest_traceback,
-                                     show_progress=not options.no_progress)
+                result_options = dict(
+                    result_printer=result_printer,
+                    total_tests=len(test_names),
+                    failfast=failfast,
+                    status_db=status_db,
+                )
                 with protect_cwd():
-                    test_suite.run(result)
+                    if options.njobs == 0:
+                        result = HTestResult(**result_options)
+                        run_monoproc_tests(test_names, result)
+                    else:
+                        result = HTestResultServer(**result_options)
+                        run_concurrent_tests(test_names, result,
+                                             njobs=options.njobs)
             result.print_summary()
             printer.new_line()
         except Exception as e:
@@ -411,7 +435,7 @@ def main(argv):
         finally:
             if result is not None:
                 write_error_test_specs(result)
-                result.close_log_file()
+    assert result is not None
     if result.wasSuccessful():
         return 0
     else:

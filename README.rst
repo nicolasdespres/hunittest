@@ -25,7 +25,8 @@ Features
 * No mandatory dependencies.
 * Fancy color if your terminal support it.
 * Convenient shell completion if you install argcomplete_.
-* Error are printed on the go (no need for ``-c/--catch`` equivalent).
+* Support parallel execution of test.
+* Error are printed on the go (no need for ``-c/--catch`` like in unittest_).
 * ``-f/--failfast`` option like in unittest_.
 * ``-q/--quiet`` option that truly prints nothing. Only the exit status
   tells you whether the test suite was successful.
@@ -34,7 +35,7 @@ Features
 * Time individual tests.
 * ImportError are properly reported while collecting test spec (i.e.
   you see the exception raised while importing the module instead of
-  an uninformative exception coming from unittest loading system)
+  an uninformative exception coming from unittest_ loading system)
 * Coverage support if you install coverage_.
 * |hunittest| write a log of all error/failures (in ``.hunittest/log``)
   so that we can review them using the pager of your choice. By
@@ -45,7 +46,7 @@ Features
 * Run test whose last status was error or failure first.
 * Highlight parts of the traceback concerning user's modules.
 * Report detailed test status delta between two runs. Useful to see
-  how many tests we have been fixed/broken by your change.
+  how many tests have been fixed/broken by your change.
 * Report modification of working directory during test.
 * Tested with Python 3.4.x
 

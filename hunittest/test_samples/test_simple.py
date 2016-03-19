@@ -36,8 +36,8 @@ class Case1(unittest.TestCase):
         raise RuntimeError("error raised for testing purpose")
 
     def test_buffer_success(self):
-        sys.stdout.write("!!!!should not appear because success!!!!")
-        sys.stderr.write("!!!!should not appear because success!!!!")
+        sys.stdout.write("!!!!should appear because success!!!!")
+        sys.stderr.write("!!!!should appear because success!!!!")
 
     def test_buffer_failure(self):
         sys.stdout.write("!!!!failure stdout!!!!")
@@ -72,3 +72,11 @@ class Case2(unittest.TestCase):
 
 class EmptyCase(unittest.TestCase):
     pass
+
+# ## Un-comment this class to test the mechanism that checks whether the current
+# ## working directory has changed.
+# class CheckCWDDidNotChanged(unittest.TestCase):
+
+#     def test_check_cwd_change(self):
+#         import os
+#         os.chdir("/tmp")

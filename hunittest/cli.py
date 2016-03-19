@@ -172,6 +172,7 @@ class CoverageInstrument(object):
 class PagerMode(AutoEnum):
     auto = ()
     never = ()
+    always = ()
 
 def spawn_pager(filename):
     pager = os.environ.get("PAGER", DEFAULT_PAGER)
@@ -179,8 +180,10 @@ def spawn_pager(filename):
     os.execvp(executable, [pager, filename])
 
 def maybe_spawn_pager(options, log_filename, isatty=True):
+    print(options.pager, file=sys.stderr)
     if options.quiet:
         return
+    print("HE", file=sys.stderr)
     if options.pager is PagerMode.auto:
         if isatty:
             assert os.path.exists(log_filename)
@@ -188,6 +191,11 @@ def maybe_spawn_pager(options, log_filename, isatty=True):
             spawn_pager(log_filename)
     elif options.pager is PagerMode.never:
         pass
+    elif options.pager is PagerMode.always:
+        print("HOHOHOHOHOOH", log_filename, file=sys.stderr)
+        assert os.path.exists(log_filename)
+        assert os.path.getsize(log_filename) > 0
+        spawn_pager(log_filename)
     else:
         raise ValueError("invalid pager option: {}".format(options.pager))
 
@@ -451,6 +459,7 @@ def main(argv):
                 import pdb
                 pdb.post_mortem(result.last_traceback)
         else:
+            print("HHHHHHHHHHHHHHHHHHHHHHHHHH", file=sys.stderr)
             maybe_spawn_pager(options, log_filename, printer.isatty)
             # maybe_spawn_pager may never return if the pager has been
             # spawned. Otherwise we return 1.

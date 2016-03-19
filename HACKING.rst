@@ -19,6 +19,11 @@ or
 
     python3 -m hunittest.cli hunittest.test
 
+or
+
+.. code:: bash
+
+    python3 -m hunittest hunittest.test
 
 To test the CLI
 ---------------

@@ -672,10 +672,12 @@ class StatusTracker(BaseResult):
                 for status in Status.stopped()}
 
     def save_status(self):
-        return self._status_db.save(self.status_scores)
+        if not self.shouldStop:
+            return self._status_db.save(self.status_scores)
 
     def load_status(self):
-        return self._status_db.load()
+        if not self.shouldStop:
+            return self._status_db.load()
 
 class ErrSuccTracker(BaseResult):
     """List erroneous/succesful tests.

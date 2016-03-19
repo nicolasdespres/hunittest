@@ -321,8 +321,7 @@ def build_cli():
         action="store",
         default=multiprocessing.cpu_count(),
         help="Maximum number of tests run concurrently. "
-        "(<= 0 means tests are run in same process; "
-        "disable --pdb)")
+        "(<= 0 means tests are run in same process)")
     # TODO(Nicolas Despres): Introduce a ColorMode enumeration
     parser.add_argument(
         "-C", "--color",
@@ -358,7 +357,8 @@ def build_cli():
         "--pdb",
         action="store_true",
         default=False,
-        help="Popup pdb when error/failure happens (implies --failfast)")
+        help="Popup pdb when error/failure happens "
+        "(implies --failfast and --jobs 0)")
     parser.add_argument(
         "--version",
         action="store_true",
@@ -383,6 +383,8 @@ def main(argv):
     if options.version:
         print(get_version())
         return 0
+    if options.pdb:
+        options.njobs = 0
     top_level_directory = setup_top_level_directory(options.top_level_directory)
     filter_rules = options.filter_rules
     if filter_rules is None:

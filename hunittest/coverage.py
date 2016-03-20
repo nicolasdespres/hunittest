@@ -20,7 +20,13 @@ def get_user_test_files(test_names):
     s = set()
     for test_spec in test_names:
         pkgname = get_test_spec_last_pkg(test_spec)
-        if pkgname is not None:
+        if pkgname is None:
+            # This is a top level module
+            mod = test_spec.partition(".")[0]
+            path = mod + ".py"
+            if os.path.isfile(path):
+                s.add(path)
+        else:
             path = re.subn(r"\.", "/", pkgname)[0]
             path = os.path.join(path, "*")
             s.add(path)

@@ -134,14 +134,19 @@ def git_describe(cwd="."):
 def get_version():
     return git_describe(cwd=os.path.dirname(os.path.realpath(__file__)))
 
-def get_coverage_omit_list(test_names):
-    l = [os.path.join(os.path.dirname(__file__), "*")] # myself
+def get_test_files_to_cover(test_names):
+    s = set()
     for test_spec in test_names:
         pkgname = get_test_spec_last_pkg(test_spec)
-        path = re.subn(r"\.", "/", pkgname)[0]
-        path = os.path.join(path, "*")
-        l.append(path)
-    return l
+        if pkgname is not None:
+            path = re.subn(r"\.", "/", pkgname)[0]
+            path = os.path.join(path, "*")
+            s.add(path)
+    return s
+
+def get_test_files_to_omit():
+    # My own files
+    return [os.path.join(os.path.dirname(__file__), "*")]
 
 class CoverageInstrument(object):
 
@@ -164,8 +169,8 @@ class CoverageInstrument(object):
             mkdir_p(self.dir_path)
             self.cov.save()
             kwargs = {"directory": self.dir_path}
-            if self.test_names:
-                kwargs["omit"] = get_coverage_omit_list(self.test_names)
+            kwargs["omit"] = get_test_files_to_omit()
+            kwargs["include"] = get_test_files_to_cover(self.test_names)
             self.cov.html_report(**kwargs)
         return False # Tell to re-raise the exception if there was one.
 

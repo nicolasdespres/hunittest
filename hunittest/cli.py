@@ -365,7 +365,8 @@ def main(argv):
              strip_unittest_traceback=options.strip_unittest_traceback,
              show_progress=not options.no_progress) as result_printer:
         try:
-            with CoverageInstrument(options.coverage_html) as cov_inst:
+            with CoverageInstrument(options.coverage_html,
+                                    njobs=options.njobs) as cov_inst:
                 test_names = reported_collect(printer, test_specs,
                                               options.pattern, filter_rules,
                                               top_level_directory,

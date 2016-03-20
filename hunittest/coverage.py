@@ -40,12 +40,12 @@ def get_test_files_to_omit(test_names):
 
 class CoverageInstrument(object):
 
-    def __init__(self, dir_path):
+    def __init__(self, dir_path, njobs=0):
         self.dir_path = dir_path
         self.cov = None
         if COVERAGE_ENABLED and self.dir_path:
-            data_file = os.path.join(self.dir_path, "coverage.data")
-            self.cov = coverage.Coverage(data_file=data_file)
+            self.cov = coverage.Coverage(
+                concurrency='multiprocessing' if njobs > 0 else None)
         self.test_names = None
 
     def __enter__(self):
@@ -56,8 +56,9 @@ class CoverageInstrument(object):
     def __exit__(self, exc_type, exc_value, traceback):
         if self.cov is not None:
             self.cov.stop()
-            mkdir_p(self.dir_path)
+            self.cov.combine()
             self.cov.save()
+            mkdir_p(self.dir_path)
             kwargs = {"directory": self.dir_path}
             kwargs["omit"] = get_test_files_to_omit(self.test_names)
             self.cov.html_report(**kwargs)

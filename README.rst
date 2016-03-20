@@ -9,7 +9,6 @@ Welcome to hunittest
 .. _ninja: https://github.com/ninja-build/ninja
 .. _argcomplete: https://pypi.python.org/pypi/argcomplete
 .. _coverage: https://pypi.python.org/pypi/coverage/4.0a5
-.. _colorama: https://pypi.python.org/pypi/colorama/0.3.3
 
 |hunittest| is a user friendly command line interface for unittest_.
 It is to unittest what htop is to top. Just a nicer command line interface.
@@ -53,7 +52,7 @@ Features
 Installation
 ============
 
-It requires Python 3.4.x at the moment. And you can install colorama_ and
+It requires Python 3.4.x at the moment. And you can install
 argcomplete_ (using ``pip3``) if you really want to enjoy it all.
 
 Directly from the source

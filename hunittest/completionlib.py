@@ -13,6 +13,7 @@ from hunittest.utils import pyname_join
 from hunittest.utils import is_pkgdir
 from hunittest.utils import mod_split
 from hunittest.utils import is_empty_generator
+from hunittest.utils import drop_pyext
 from hunittest.collectlib import get_test_spec_type
 from hunittest.collectlib import TestSpecType
 from hunittest.collectlib import collect_test_cases
@@ -61,6 +62,18 @@ def list_packages_from(dirpath):
         if is_pkgdir(os.path.join(dirpath, name)):
             yield name
 
+def list_modules_from(dirpath, pattern):
+    """Yields all modules directly available form *dirpath.
+
+    Useful to suggest module located at the root of top level directory the
+    discovery procedure starts from.
+    """
+    for name in os.listdir(dirpath):
+        if os.path.isfile(name) \
+           and name.endswith(".py") \
+           and re.match(pattern, name):
+            yield drop_pyext(name)
+
 def collect_from_test_suite(test_suite):
     """Generate all test full names in *test_suite* recursively.
     """
@@ -79,10 +92,15 @@ def collect_from_test_suite(test_suite):
                         .format(type(test_suite).__name__))
     yield from rec(test_suite)
 
-def argcomplete_directories(prefix, top_level_directory):
+def argcomplete_top_package(prefix, top_level_directory):
     for directory in list_packages_from(top_level_directory):
         if directory.startswith(prefix):
             yield directory
+
+def argcomplete_top_module(prefix, top_level_directory, pattern):
+    for modname in list_modules_from(top_level_directory, pattern):
+        if modname.startswith(prefix):
+            yield modname
 
 def argcomplete_modules(package, pattern, prefix):
     directory = os.path.dirname(package.__file__)
@@ -116,8 +134,11 @@ def gen_test_spec_completion(prefix, parsed_args):
     spec = prefix.split(".")
     assert len(spec) > 0
     if len(spec) == 1:
-        yield from argcomplete_directories(spec[0],
+        yield from argcomplete_top_package(spec[0],
                                            parsed_args.top_level_directory)
+        yield from argcomplete_top_module(spec[0],
+                                          parsed_args.top_level_directory,
+                                          parsed_args.pattern)
     else:
         test_spec = spec[:-1]
         rest = spec[-1]

@@ -368,7 +368,7 @@ def build_cli():
         action="store",
         nargs='*',
         default=None,
-        help="Test directory/module/TestCase/test_method.")
+        help="Test package/module/TestCase/test_method.")
     complete_arg(arg, test_spec_completer)
     return parser
 

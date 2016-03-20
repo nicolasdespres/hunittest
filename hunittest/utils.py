@@ -17,6 +17,9 @@ def is_pkgdir(dirpath):
     return os.path.isdir(dirpath) \
         and os.path.isfile(os.path.join(dirpath, "__init__.py"))
 
+def drop_pyext(pathname):
+    return re.sub(r"\.py$", "", pathname)
+
 def mod_split(modname):
     mo = re.match(r"^(.+)\.(.*)$", modname)
     if not mo:

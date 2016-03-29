@@ -8,6 +8,8 @@ import re
 from enum import Enum
 from contextlib import contextmanager
 import unittest
+import sys
+from io import StringIO
 
 
 def pyname_join(seq):
@@ -67,3 +69,12 @@ def load_single_test_case(test_name):
     test_suite = list(unittest.defaultTestLoader.loadTestsFromName(test_name))
     assert len(test_suite) == 1
     return test_suite[0]
+
+@contextmanager
+def silent_stderr():
+    old_stderr = sys.stderr
+    sys.stderr = StringIO()
+    try:
+        yield
+    finally:
+        sys.stderr = old_stderr

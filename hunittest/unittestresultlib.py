@@ -393,13 +393,14 @@ class ResultPrinter:
         formatter = "{run_status} {total_count} tests in "\
                     "{total_time} (avg: {mean_split_time}; "\
                     "total: {wall_time}; speedup: {speedup:.2f})"
+        speedup = total_time / wall_time if wall_time else 0
         msg = formatter.format(
             run_status=self._format_run_status(status_counters),
             total_count=tests_run,
             total_time=timedelta_to_hstr(total_time),
             mean_split_time=timedelta_to_hstr(mean_split_time),
             wall_time=timedelta_to_hstr(wall_time),
-            speedup=total_time/wall_time,
+            speedup=speedup,
         )
         self._printer.log_overwrite_nl(msg)
         ### Print detailed summary

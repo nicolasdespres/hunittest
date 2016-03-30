@@ -12,6 +12,7 @@ from collections import namedtuple
 from hunittest.unittestresultlib import HTestResultClient
 from hunittest.unittestresultlib import ResultMsg
 from hunittest.utils import load_single_test_case
+from hunittest.coveragelib import CoverageInstrument
 
 class _ErrMsg(namedtuple("ErrMsg", ("type", "value", "msg"))):
     """Message representing an uncaught exception raised in the worker process.
@@ -26,10 +27,13 @@ def _worker_run_aux(test_name, result):
     test_case = load_single_test_case(test_name)
     test_case.run(result)
 
-def _worker_run(conn, worker_id):
+def _worker_run(conn, worker_id, cov_args):
     """Executed in the worker process.
     """
-    with conn:
+    if cov_args is None:
+        cov_args = {}
+    cov = CoverageInstrument(**cov_args)
+    with conn, cov:
         result = HTestResultClient(worker_id, conn)
         done = False
         while not done:
@@ -54,7 +58,7 @@ def _worker_run(conn, worker_id):
                     raise RuntimeError("worker {} received unexpected message: "
                                        "{!r}".format(worker_id, msg))
 
-def run_concurrent_tests(test_names, result, njobs=1):
+def run_concurrent_tests(test_names, result, njobs=1, cov_args=None):
     """Run multiple tests concurrently using multiple process.
 
     This function is executed in the master process. It distribute tests to
@@ -82,7 +86,7 @@ def run_concurrent_tests(test_names, result, njobs=1):
     workers = []
     for i in range(nproc):
         my_conn, worker_conn = mp.Pipe()
-        proc = mp.Process(target=_worker_run, args=(worker_conn, i))
+        proc = mp.Process(target=_worker_run, args=(worker_conn, i, cov_args))
         conns.append(my_conn)
         workers.append(proc)
         proc.start()
@@ -134,10 +138,11 @@ def run_concurrent_tests(test_names, result, njobs=1):
         for p in workers:
             p.join()
 
-def run_monoproc_tests(test_names, result):
-    for test_name in test_names:
-        # If a test has failed and -f/--failfast is set we must exit now.
-        if result.shouldStop:
-            break
-        test_case = load_single_test_case(test_name)
-        test_case.run(result)
+def run_monoproc_tests(test_names, result, cov):
+    with cov:
+        for test_name in test_names:
+            # If a test has failed and -f/--failfast is set we must exit now.
+            if result.shouldStop:
+                break
+            test_case = load_single_test_case(test_name)
+            test_case.run(result)

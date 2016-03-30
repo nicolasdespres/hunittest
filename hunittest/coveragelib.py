@@ -177,7 +177,9 @@ class CoverageInstrument(object):
             return
         self.combine()
         if "term" in self.reporters:
-            self.cov.report()
+            self.cov.report(show_missing=False)
+        if "term-missing" in self.reporters:
+            self.cov.report(show_missing=True)
         if "annotate" in self.reporters:
             self.cov.annotate()
         if "html" in self.reporters:
@@ -195,7 +197,8 @@ class CoverageInstrument(object):
 
 def add_coverage_cmdline_arguments(parser):
     DEFAULT_REPORTER = "term"
-    VALID_REPORTERS = set((DEFAULT_REPORTER, "annotate", "html", "xml"))
+    VALID_REPORTERS = set((DEFAULT_REPORTER, "term-missing",
+                           "annotate", "html", "xml"))
     if COVERAGE_ENABLED:
         help_msg = "Comma separated list of report types to generate "\
                    "(any combination of: {})"\

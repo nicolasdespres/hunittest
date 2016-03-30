@@ -98,7 +98,6 @@ class CoverageInstrument(object):
         self.test_names = None
         self.write_sitecustomize()
         self.reporters = reporters
-        self.combined = False
 
     def __del__(self):
         if self.cov is None:
@@ -165,8 +164,6 @@ class CoverageInstrument(object):
     def combine(self):
         if self.cov is None:
             return
-        if self.combined:
-            return
         self.cov.combine()
         self.cov.save()
         self._drop_combined_data_suffix()
@@ -175,7 +172,6 @@ class CoverageInstrument(object):
     def report(self):
         if self.cov is None:
             return
-        self.combine()
         if "term" in self.reporters:
             self.cov.report(show_missing=False)
         if "term-missing" in self.reporters:

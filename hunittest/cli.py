@@ -417,6 +417,7 @@ def main(argv):
             printer.write_exception()
             return 2
         finally:
+            cov.combine()
             if not options.collect_only:
                 cov.report()
             if result is not None:

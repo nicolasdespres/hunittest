@@ -51,12 +51,13 @@ def reported_collect(printer, test_specs, pattern, filter_rules,
                      top_level_only=False):
     if top_level_only:
         previous_errors = None
-        printer.overwrite("Loading top-level test specs...")
+        test_kind_msg = "top-level "
     else:
         if progress:
             printer.overwrite("Loading previous errors...")
         previous_errors = load_error_test_specs()
-        printer.overwrite("Loading test specs...")
+        test_kind_msg = ""
+    printer.overwrite("Loading {}test spec(s)...".format(test_kind_msg))
     collection = collect_all(test_specs, pattern, top_level_directory,
                              top_level_only=top_level_only)
     test_names = []
@@ -72,7 +73,8 @@ def reported_collect(printer, test_specs, pattern, filter_rules,
     if len(test_names) == 0:
         printer.overwrite("no test collected")
     else:
-        printer.overwrite("collected {:d} test(s)".format(len(test_names)))
+        printer.overwrite("collected {:d} {}test(s)".format(len(test_names),
+                                                            test_kind_msg))
     return test_names
 
 def complete_arg(arg, completer):

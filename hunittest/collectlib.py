@@ -11,9 +11,30 @@ import re
 import unittest
 import functools
 import sys
+import itertools
 
 from hunittest.utils import pyname_join
+from hunittest.utils import is_pkgdir
+from hunittest.utils import drop_pyext
 
+
+def list_packages_from(dirpath):
+    """Yields all packages directly available from *dirpath*."""
+    for name in os.listdir(dirpath):
+        if is_pkgdir(os.path.join(dirpath, name)):
+            yield name
+
+def list_modules_from(dirpath, pattern):
+    """Yields all modules directly available form *dirpath.
+
+    Useful to suggest module located at the root of top level directory the
+    discovery procedure starts from.
+    """
+    for name in os.listdir(dirpath):
+        if os.path.isfile(name) \
+           and name.endswith(".py") \
+           and re.match(pattern, name):
+            yield drop_pyext(name)
 
 def is_test_case(obj):
     return isinstance(obj, type) and issubclass(obj, unittest.TestCase)
@@ -171,6 +192,10 @@ def collect_all(test_specs, pattern, top_level_directory, top_level_only=False):
     specs (i.e. packages and module). When this flag is on no module are loaded
     and thus, the collection process should be faster.
     """
+    if not test_specs:
+        test_specs = itertools.chain(list_packages_from(top_level_directory),
+                                     list_modules_from(top_level_directory,
+                                                       pattern))
     for test_spec in test_specs:
         tst, value = get_test_spec_type(test_spec, top_level_directory)
         if tst is TestSpecType.package:

@@ -26,7 +26,6 @@ from hunittest.filter_rules import PatternType
 from hunittest.filter_rules import FilterRules
 from hunittest.collectlib import collect_all
 from hunittest.completionlib import test_spec_completer
-from hunittest.completionlib import list_packages_from
 from hunittest.collectlib import setup_top_level_directory
 from hunittest.utils import AutoEnum
 from hunittest.utils import mkdir_p
@@ -352,9 +351,6 @@ def main(argv):
     filter_rules = options.filter_rules
     if filter_rules is None:
         filter_rules = FilterRules()
-    test_specs = options.test_specs
-    if not test_specs:
-        test_specs = list(list_packages_from(top_level_directory))
     failfast = options.failfast or options.pdb
     log_filename = get_log_filename()
     status_db = StatusDB(get_status_filename(options))
@@ -376,14 +372,14 @@ def main(argv):
         if is_coverage_on(options):
             top_level_test_specs = reported_collect(
                 printer,
-                test_specs,
+                options.test_specs,
                 options.pattern,
                 filter_rules,
                 top_level_directory,
                 progress=not options.no_progress,
                 top_level_only=True)
         else:
-            top_level_test_specs = test_specs
+            top_level_test_specs = options.test_specs
         cov_args = dict(top_level_dir=top_level_directory,
                         reporters=options.coverage,
                         top_level_test_specs=top_level_test_specs)

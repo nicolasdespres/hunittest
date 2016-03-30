@@ -10,15 +10,15 @@ import re
 from importlib import import_module
 
 from hunittest.utils import pyname_join
-from hunittest.utils import is_pkgdir
 from hunittest.utils import mod_split
 from hunittest.utils import is_empty_generator
-from hunittest.utils import drop_pyext
 from hunittest.collectlib import get_test_spec_type
 from hunittest.collectlib import TestSpecType
 from hunittest.collectlib import collect_test_cases
 from hunittest.collectlib import collect_test_names
 from hunittest.collectlib import setup_top_level_directory
+from hunittest.collectlib import list_packages_from
+from hunittest.collectlib import list_modules_from
 
 # Set this to True to enable logging. Useful for debugging.
 LOGGER_ENABLED = False
@@ -55,24 +55,6 @@ else:
     def warn(*args):
         argcomplete.warn(*args)
         LOGGER.warning(*args)
-
-def list_packages_from(dirpath):
-    """Yields all packages directly available from *dirpath*."""
-    for name in os.listdir(dirpath):
-        if is_pkgdir(os.path.join(dirpath, name)):
-            yield name
-
-def list_modules_from(dirpath, pattern):
-    """Yields all modules directly available form *dirpath.
-
-    Useful to suggest module located at the root of top level directory the
-    discovery procedure starts from.
-    """
-    for name in os.listdir(dirpath):
-        if os.path.isfile(name) \
-           and name.endswith(".py") \
-           and re.match(pattern, name):
-            yield drop_pyext(name)
 
 def collect_from_test_suite(test_suite):
     """Generate all test full names in *test_suite* recursively.

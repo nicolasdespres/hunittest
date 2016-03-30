@@ -34,8 +34,9 @@ from hunittest.utils import protect_cwd
 from hunittest import envar
 from hunittest.runner import run_monoproc_tests
 from hunittest.runner import run_concurrent_tests
-from hunittest.coverage import COVERAGE_ENABLED
-from hunittest.coverage import CoverageInstrument
+from hunittest.coveragelib import COVERAGE_ENABLED
+from hunittest.coveragelib import add_coverage_cmdline_arguments
+from hunittest.coveragelib import CoverageInstrument
 
 try:
     import argcomplete
@@ -47,18 +48,25 @@ else:
     ARGCOMPLETE_ENABLED = True
 
 def reported_collect(printer, test_specs, pattern, filter_rules,
-                     top_level_directory, progress=True):
-    if progress:
-        printer.overwrite("Loading previous errors...")
-    previous_errors = load_error_test_specs()
-    collection = collect_all(test_specs, pattern, top_level_directory)
+                     top_level_directory, progress=True,
+                     top_level_only=False):
+    if top_level_only:
+        previous_errors = None
+        printer.overwrite("Loading top-level test specs...")
+    else:
+        if progress:
+            printer.overwrite("Loading previous errors...")
+        previous_errors = load_error_test_specs()
+        printer.overwrite("Loading test specs...")
+    collection = collect_all(test_specs, pattern, top_level_directory,
+                             top_level_only=top_level_only)
     test_names = []
     for n, test_name in enumerate(filter_rules(collection)):
         if progress:
             prefix = "collecting {:d}: ".format(n+1)
             msg = test_name
             printer.overwrite_message(prefix, msg, ellipse_index=1)
-        if test_name in previous_errors:
+        if previous_errors is not None and test_name in previous_errors:
             test_names.insert(0, test_name)
         else:
             test_names.append(test_name)
@@ -152,6 +160,9 @@ def maybe_spawn_pager(options, log_filename, isatty=True):
 
 def is_pdb_on(options):
     return not options.quiet and options.njobs <= 0 and options.pdb
+
+def is_coverage_on(options):
+    return COVERAGE_ENABLED and options.coverage
 
 def write_error_test_specs(result):
     filename = get_error_filename()
@@ -299,14 +310,7 @@ def build_cli():
         action="store_true",
         default=False,
         help="Do not show progress while running test.")
-    if COVERAGE_ENABLED:
-        coverage_html_help = "Directory where to store the html report"
-    else:
-        coverage_html_help = "install 'coverage' to support enable this option"
-    parser.add_argument(
-        "--coverage-html",
-        action="store",
-        help=coverage_html_help)
+    add_coverage_cmdline_arguments(parser)
     parser.add_argument(
         "--pager",
         action=PagerModeAction,
@@ -364,37 +368,59 @@ def main(argv):
              log_filename=log_filename,
              strip_unittest_traceback=options.strip_unittest_traceback,
              show_progress=not options.no_progress) as result_printer:
+        # Collect only top level test specs (i.e. packages and modules, not test
+        # classes and methods), because we have to tell the coverage package to
+        # omit them. The omition could be done only when the reporting is
+        # performed but the coveralls utility (who does its own reporting) won't
+        # take it into account.
+        if is_coverage_on(options):
+            top_level_test_specs = reported_collect(
+                printer,
+                test_specs,
+                options.pattern,
+                filter_rules,
+                top_level_directory,
+                progress=not options.no_progress,
+                top_level_only=True)
+        else:
+            top_level_test_specs = test_specs
+        cov_args = dict(top_level_dir=top_level_directory,
+                        reporters=options.coverage,
+                        top_level_test_specs=top_level_test_specs)
+        cov = CoverageInstrument(**cov_args)
+        cov.erase()
         try:
-            with CoverageInstrument(options.coverage_html,
-                                    njobs=options.njobs) as cov_inst:
-                test_names = reported_collect(printer, test_specs,
+            with cov:
+                test_names = reported_collect(printer, top_level_test_specs,
                                               options.pattern, filter_rules,
                                               top_level_directory,
                                               progress=not options.no_progress)
-                cov_inst.test_names = test_names
-                if options.collect_only:
-                    printer.new_line()
-                    return 0
-                result_options = dict(
-                    result_printer=result_printer,
-                    total_tests=len(test_names),
-                    failfast=failfast,
-                    status_db=status_db,
-                )
-                with protect_cwd():
-                    if options.njobs == 0:
-                        result = HTestResult(**result_options)
-                        run_monoproc_tests(test_names, result)
-                    else:
-                        result = HTestResultServer(**result_options)
-                        run_concurrent_tests(test_names, result,
-                                             njobs=options.njobs)
+            if options.collect_only:
+                printer.new_line()
+                return 0
+            result_options = dict(
+                result_printer=result_printer,
+                total_tests=len(test_names),
+                failfast=failfast,
+                status_db=status_db,
+            )
+            with protect_cwd():
+                if options.njobs == 0:
+                    result = HTestResult(**result_options)
+                    run_monoproc_tests(test_names, result, cov)
+                else:
+                    result = HTestResultServer(**result_options)
+                    run_concurrent_tests(test_names, result,
+                                         njobs=options.njobs,
+                                         cov_args=cov_args)
             result.print_summary()
             printer.new_line()
         except Exception as e:
             printer.write_exception()
             return 2
         finally:
+            if not options.collect_only:
+                cov.report()
             if result is not None:
                 write_error_test_specs(result)
     assert result is not None

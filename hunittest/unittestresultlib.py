@@ -397,8 +397,8 @@ class ResultPrinter:
                       wall_time):
         ### Print main summary
         formatter = "{run_status} {total_count} tests in "\
-                    "{total_time} (avg: {mean_split_time}; "\
-                    "total: {wall_time}; speedup: {speedup:.2f})"
+                    "{wall_time} (avg: {mean_split_time}; "\
+                    "total: {total_time}; speedup: {speedup:.2f})"
         speedup = total_time / wall_time if wall_time else 0
         msg = formatter.format(
             run_status=self._format_run_status(status_counters),

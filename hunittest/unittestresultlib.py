@@ -412,6 +412,9 @@ class ResultPrinter:
         ### Print detailed summary
         counters = {}
         counters_format = []
+        # If the detailed summary consists only in all passing tests it does
+        # not deserves to be print.
+        pass_status_only = True
         for status in Status.stopped():
             count = status_counters.get(status)
             if prev_status_counters is None:
@@ -425,8 +428,11 @@ class ResultPrinter:
                 s += self.RESET
                 counters[status.value] = s
                 counters_format.append("{{{s}}} {s}".format(s=status.value))
+                if status is not Status.PASS:
+                    pass_status_only = False
         # Print detailed summary only if there were tests.
-        if counters_format:
+        if len(counters_format) > 1 \
+           or (len(counters_format) == 1 and not pass_status_only):
             msg = " ".join(counters_format).format(**counters)
             self._printer.log_write_nl(msg)
 

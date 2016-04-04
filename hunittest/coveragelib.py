@@ -72,6 +72,11 @@ class CoverageInstrument(object):
     The user must create a suitable configuration file at the root of its
     project (generally named .coveragerc). The run:parallel option must be set
     to true regardless that the test will or will not be run in parallel.
+
+    Although we automatically compute a quiet accurate list of files to omit,
+    we encourage users to set the 'source' option in their configuration files
+    so that the coverage package can warn them when a file is not covered at
+    all.
     """
 
     def __init__(self,

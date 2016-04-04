@@ -238,14 +238,14 @@ class ResultPrinter:
                                 status_counters, progress,
                                 mean_split_time, last_split_time):
         counters = {}
-        counter_formats = []
+        counters_format = []
         for status in Status.stopped():
             counters[status.value] = self.status_color(status) \
                                      + str(status_counters.get(status)) \
                                      + self.RESET
-            counter_formats.append("{{{s}}}".format(s=status.value))
+            counters_format.append("{{{s}}}".format(s=status.value))
         prefix_formatter = "[{progress:>4.0%}|{mean_split_time:.2f}ms|" \
-                           + "|".join(f for f in counter_formats) \
+                           + "|".join(f for f in counters_format) \
                            + "] {test_status}: "
         suffix_formatter = " ({elapsed})"
         prefix = prefix_formatter.format(
@@ -405,7 +405,7 @@ class ResultPrinter:
         self._printer.log_overwrite_nl(msg)
         ### Print detailed summary
         counters = {}
-        counter_formats = []
+        counters_format = []
         for status in Status.stopped():
             count = status_counters.get(status)
             if prev_status_counters is None:
@@ -418,10 +418,10 @@ class ResultPrinter:
                     s += "({:+d})".format(count_delta)
                 s += self.RESET
                 counters[status.value] = s
-                counter_formats.append("{{{s}}} {s}".format(s=status.value))
+                counters_format.append("{{{s}}} {s}".format(s=status.value))
         # Print detailed summary only if there were tests.
-        if counter_formats:
-            msg = " ".join(counter_formats).format(**counters)
+        if counters_format:
+            msg = " ".join(counters_format).format(**counters)
             self._printer.log_write_nl(msg)
 
     def close(self):

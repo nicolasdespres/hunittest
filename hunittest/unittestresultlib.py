@@ -238,14 +238,20 @@ class ResultPrinter:
                                 status_counters, progress,
                                 mean_split_time, last_split_time):
         counters = {}
-        counters_format = []
+        counters_format_parts = []
         for status in Status.stopped():
-            counters[status.value] = self.status_color(status) \
-                                     + str(status_counters.get(status)) \
-                                     + self.RESET
-            counters_format.append("{{{s}}}".format(s=status.value))
-        prefix_formatter = "[{progress:>4.0%}|{mean_split_time:.2f}ms|" \
-                           + "|".join(f for f in counters_format) \
+            counter_value = status_counters.get(status)
+            if counter_value > 0:
+                counters[status.value] = self.status_color(status) \
+                                         + str(counter_value) \
+                                         + self.RESET
+                counters_format_parts.append("{{{s}}}".format(s=status.value))
+        if counters_format_parts:
+            counter_format = "|" + "|".join(f for f in counters_format_parts)
+        else:
+            counter_format = ""
+        prefix_formatter = "[{progress:>4.0%}|{mean_split_time:.2f}ms" \
+                           + counter_format \
                            + "] {test_status}: "
         suffix_formatter = " ({elapsed})"
         prefix = prefix_formatter.format(

@@ -14,6 +14,7 @@ import json
 from enum import Enum
 from collections import namedtuple
 from datetime import timedelta
+import textwrap
 
 from hunittest.line_printer import strip_ansi_escape
 from hunittest.timedeltalib import timedelta_to_hstr as _timedelta_to_hstr
@@ -144,12 +145,13 @@ class Status(Enum):
     XFAIL = "xfail"
     XPASS = "xpass"
     RUNNING = "running"
+    STOP = "stop"
 
     @classmethod
     def stopped(cls):
         """Yield all status representing a stopped test."""
         for status in cls:
-            if status is not cls.RUNNING:
+            if status is not cls.RUNNING and status is not cls.STOP:
                 yield status
 
     def is_erroneous(self):
@@ -196,6 +198,12 @@ def _format_exception(exc_type, exc_value, exc_traceback):
         return exc_traceback
     return traceback.format_exception(exc_type, exc_value, exc_traceback)
 
+def _format_subtest_params(params):
+    if not params:
+        return ''
+    return "{{{}}}".format(", ".join("{}={!r}".format(k, v)
+                                     for k, v in params.items()))
+
 class ResultPrinter:
 
     _STATUS_MAXLEN = max(len(s.value) for s in Status)
@@ -216,13 +224,10 @@ class ResultPrinter:
         self.XPASS_COLOR = self._printer.term_info.fore_yellow
         self.ERROR_COLOR = self._printer.term_info.fore_magenta
         self.RUNNING_COLOR = self._printer.term_info.fore_white
+        self.STOP_COLOR = self._printer.term_info.fore_white
         self.RESET = self._printer.term_info.reset_all
         self.TRACE_HL = self._printer.term_info.fore_white \
                         + self._printer.term_info.bold
-        self.reset()
-
-    def reset(self):
-        self._header_printed = False
 
     def status_color(self, status):
         return getattr(self, "{}_COLOR".format(status.value.upper()))
@@ -239,7 +244,8 @@ class ResultPrinter:
 
     def _print_progress_message(self, test_name, test_status,
                                 status_counters, progress,
-                                mean_split_time, last_split_time):
+                                mean_split_time, last_split_time,
+                                params=None):
         counters = {}
         counters_format_parts = []
         for status in Status.stopped():
@@ -264,24 +270,30 @@ class ResultPrinter:
                                               "ms"),
             **counters)
         if test_status != Status.RUNNING \
-           and last_split_time is not None:
+           and last_split_time is not None \
+           and not params:
             suffix = suffix_formatter.format(
                 elapsed=timedelta_to_hstr(last_split_time))
         else:
             suffix = ""
-        self._printer.overwrite_message(prefix, test_name,
+        printed_test_name = test_name+_format_subtest_params(params)
+        self._printer.overwrite_message(prefix, printed_test_name,
                                         suffix, ellipse_index=1)
 
     def print_message(self, test, test_status, status_counters, progress,
                       mean_split_time, last_split_time,
-                      err=None, reason=None):
+                      err=None, reason=None, params=None):
+        if test_status is Status.RUNNING:
+            self._subtests_printed = False
+            self._header_printed = False
         test_name = get_test_name(test)
         if self._show_progress:
             self._print_progress_message(test_name, test_status,
                                          status_counters, progress,
-                                         mean_split_time, last_split_time)
+                                         mean_split_time, last_split_time,
+                                         params=params)
         if err is not None:
-            self._print_error(test, test_status, err)
+            self._print_error(test, test_status, err, params=params)
         if reason is not None:
             self._print_reason(test, test_status, reason)
 
@@ -303,21 +315,34 @@ class ResultPrinter:
             return None
         return filename.startswith(os.path.dirname(unittest.__file__))
 
-    def _print_header(self, test, test_status):
+    def _header_prefix(self, test_status):
+        status = self.format_test_status(test_status, aligned=False)
+        return "{status}: ".format(status=status)
+
+    def _print_header(self, test, test_status, params=None):
         if self._header_printed:
             return
         test_name = get_test_name(test)
-        msg = "{status}: {name}"\
-            .format(status=self.format_test_status(test_status, aligned=False),
-                    name=test_name)
+        msg = self._header_prefix(test_status) \
+              + "{name}".format(name=test_name)
         self._hbar_len = len(strip_ansi_escape(msg))
         self._printer.log_overwrite_nl("-" * self._hbar_len)
-        self._printer.log_overwrite_nl(msg)
-        self._header_printed = True
+        self._printer.log_write_nl(msg)
+        self._print_subtest_params(test_status, params, self._hbar_len)
+        self._header_printed = not params
 
-    def _print_error(self, test, test_status, err):
+    def _print_subtest_params(self, test_status, params, width):
+        if not params:
+            return
+        prefix_len = len(strip_ansi_escape(self._header_prefix(test_status)))
+        for line in textwrap.wrap(_format_subtest_params(params),
+                                  width=width - prefix_len):
+            self._printer.log_write_nl("{}{}".format(" " * prefix_len, line))
+        self._subtests_printed = True
+
+    def _print_error(self, test, test_status, err, params=None):
         assert err is not None
-        self._print_header(test, test_status)
+        self._print_header(test, test_status, params=params)
         self._printer.log_write_nl("-" * self._hbar_len)
         ### Print exception traceback
         all_lines = _format_exception(*err)
@@ -378,7 +403,8 @@ class ResultPrinter:
     def print_ios(self, test, stdout_value, stderr_value):
         if not stdout_value and not stderr_value:
             return
-        self._print_header(test, Status.PASS)
+        status = Status.STOP if self._subtests_printed else Status.PASS
+        self._print_header(test, status)
         self._print_io(test, stdout_value, "stdout")
         self._print_io(test, stderr_value, "stderr")
         if stdout_value or stderr_value:
@@ -479,8 +505,15 @@ class BaseResult:
         # print("stopTesRun")
         pass
 
-    def addSubTest(self, test, subtest, outcome):
-        assert False
+    def addSubTest(self, test, subtest, err):
+        if err is not None:
+            if issubclass(err[0], test.failureException):
+                status = Status.FAIL
+            else:
+                status = Status.ERROR
+        else:
+            status = Status.PASS
+        self.addOutcome(test, status, err=err, params=subtest.params)
 
     def addSuccess(self, test):
         # the delegation chain stops here
@@ -512,7 +545,7 @@ class BaseResult:
         assert not hasattr(super(), 'stopTest')
         self.addOutcome(test, Status.XPASS)
 
-    def addOutcome(self, test, status, err=None, reason=None):
+    def addOutcome(self, test, status, err=None, reason=None, params=None):
         """Called by all outcome callback.
 
         Introduced to ease addition of behavior for all possible test outcomes.
@@ -539,8 +572,8 @@ class Failfast(BaseResult):
     def last_traceback(self):
         return self._last_traceback
 
-    def addOutcome(self, test, status, err=None, reason=None):
-        super().addOutcome(test, status, err, reason)
+    def addOutcome(self, test, status, err=None, reason=None, params=None):
+        super().addOutcome(test, status, err, reason, params)
         if self._failfast and status.is_erroneous():
             if err is not None:
                 self._last_traceback = err[2]
@@ -631,9 +664,9 @@ class TestExecStopwatch(BaseResult):
             self.stopwatch.start()
         super().startTest(test)
 
-    def addOutcome(self, test, status, err=None, reason=None):
+    def stopTest(self, test):
+        super().stopTest(test)
         self.stopwatch.split()
-        super().addOutcome(test, status, err, reason)
 
 class RunProgress(BaseResult):
     """Count running and ran tests.
@@ -675,8 +708,8 @@ class StatusTracker(BaseResult):
         self._status_db = status_db
         self.status_counters = StatusCounters()
 
-    def addOutcome(self, test, status, err=None, reason=None):
-        super().addOutcome(test, status, err, reason)
+    def addOutcome(self, test, status, err=None, reason=None, params=None):
+        super().addOutcome(test, status, err, reason, params)
         self.status_counters.inc(status)
 
     def wasSuccessful(self):
@@ -709,8 +742,8 @@ class ErrSuccTracker(BaseResult):
         self._error_test_specs = set()
         self._succeed_test_specs = set()
 
-    def addOutcome(self, test, status, err=None, reason=None):
-        super().addOutcome(test, status, err, reason)
+    def addOutcome(self, test, status, err=None, reason=None, params=None):
+        super().addOutcome(test, status, err, reason, params)
         test_name = get_test_name(test)
         if status.is_erroneous():
             self._error_test_specs.add(test_name)
@@ -775,15 +808,20 @@ class HTestResult(Walltime,
     def stopTest(self, test):
         super().stopTest(test)
         self._printer.print_ios(test, self.stdout_value, self.stderr_value)
-        self._printer.reset()
 
-    def addOutcome(self, test, status, err=None, reason=None):
-        super().addOutcome(test, status, err, reason)
+    def addSubTest(self, test, subtest, err):
+        super().addSubTest(test, subtest, err)
+        # We cannot print IOs for each sub test because the test runner
+        # calls 'addSubTest' once the main test has returned.
+
+    def addOutcome(self, test, status, err=None, reason=None, params=None):
+        super().addOutcome(test, status, err, reason, params)
         self._printer.print_message(test, status, self.status_counters,
                                     self.progress,
                                     self.stopwatch.mean_split_time,
                                     self.stopwatch.last_split_time,
-                                    err=err, reason=reason)
+                                    err=err, reason=reason,
+                                    params=params)
 
     def print_summary(self):
         prev_counters = self.load_status()
@@ -797,23 +835,30 @@ class HTestResult(Walltime,
         self.save_status()
 
 # Message representing the result of test.
-ResultMsg = namedtuple("ResultMsg",
-                       ("test_name",   # The complete spec of the test.
-                        "status",      # The test status.
-                        "error",       # An exception raised during test
-                                       # execution represented as a tuple
-                                       # similar to the one returned by
-                                       # sys.exc_info(). The last obj is a
-                                       # serialized traceback.
-                        "reason",      # A string containing the reason why
-                                       # a test has been skipped.
-                        "total_time",  # The total execution time of a test.
-                        "stdout",      # The stdout produced by the test.
-                        "stderr"))     # The stderr produced by the test.
+SubtestResult \
+    = namedtuple("SubtestResult",
+                 ("status",      # The test status.
+                  "error",       # An exception raised during test
+                                 # execution represented as a tuple
+                                 # similar to the one returned by
+                                 # sys.exc_info(). The last obj is a
+                                 # serialized traceback.
+                  "reason",      # A string containing the reason why
+                                 # a test has been skipped.
+                  "params"))      # The params of the sub-test.
+
+TestResultMsg \
+    = namedtuple("TestResultMsg",
+                 ("stdout",     # The stdout produced by the test.
+                  "stderr",     # The stderr produced by the test.
+                  "test_name",  # The complete spec of the test.
+                  "total_time", # The total execution time of a test.
+                  "results"))   # A list of SubtestResult object.
 
 class HTestResultClient(CheckCWDDidNotChanged,
                         CaptureStdio,
-                        TestExecStopwatch):
+                        TestExecStopwatch,
+                        Failfast):
     """Client side of result class used by the multi-process runner.
 
     An instance of this class run in each worker process. The outcome of each
@@ -827,6 +872,7 @@ class HTestResultClient(CheckCWDDidNotChanged,
         self._worker_id = worker_id
         self._conn = conn
         self._result_attrs = None
+        self._sub_results = []
 
     def stopTest(self, test):
         super().stopTest(test)
@@ -834,28 +880,34 @@ class HTestResultClient(CheckCWDDidNotChanged,
 
     def _send_outcome(self):
         assert self._result_attrs is not None
-        msg = ResultMsg(stdout=self.stdout_value,
-                        stderr=self.stderr_value,
-                        **self._result_attrs)
+        assert self._sub_results
+        self._result_attrs["total_time"] = self.stopwatch.last_split_time
+        msg = TestResultMsg(stdout=self.stdout_value,
+                            stderr=self.stderr_value,
+                            results=self._sub_results,
+                            **self._result_attrs)
         self._conn.send((self._worker_id, msg))
         self._result_attrs = None
+        self._sub_results = []
 
-    def addOutcome(self, test, status, err=None, reason=None):
-        super().addOutcome(test, status, err, reason)
-        self._save_result(test, status, err, reason)
+    def addOutcome(self, test, status, err=None, reason=None, params=None):
+        super().addOutcome(test, status, err, reason, params)
+        self._save_result(test, status, err, reason, params)
 
-    def _save_result(self, test, status, err=None, reason=None):
+    def _save_result(self, test, status, err=None, reason=None, params=None):
         if err is not None:
             error = (err[0], err[1], traceback.format_exception(*err))
         else:
             error = None
         self._result_attrs = dict(
             test_name=get_test_name(test),
+        )
+        self._sub_results.append(SubtestResult(
             status=status,
             error=error,
             reason=reason,
-            total_time=self.stopwatch.last_split_time,
-        )
+            params=params,
+        ))
 
 class HTestResultServer(Walltime,
                         RunProgress,
@@ -883,10 +935,12 @@ class HTestResultServer(Walltime,
         ### Update internal state.
         self._last_result_msg = result_msg
         self._total_split_time += self.last_split_time
-        ### Dispatch handling of the received message.
-        self.addOutcome(result_msg.test_name, result_msg.status,
-                        err=result_msg.error,
-                        reason=result_msg.reason)
+        for result in result_msg.results:
+            ### Dispatch handling of the received message.
+            self.addOutcome(result_msg.test_name, result.status,
+                            err=result.error,
+                            reason=result.reason,
+                            params=result.params)
         self.stopTest(result_msg.test_name)
 
     def startTest(self, test):
@@ -902,16 +956,20 @@ class HTestResultServer(Walltime,
         self._printer.print_ios(test,
                                 self._last_result_msg.stdout,
                                 self._last_result_msg.stderr)
-        self._printer.reset()
 
-    def addOutcome(self, test, status, err=None, reason=None):
+    def addSubTest(self, test, subtest, err):
+        super().addSubTest(test, subtest, err)
+        # We cannot print IOs for each sub test because the test runner
+        # calls 'addSubTest' once the main test has returned.
+
+    def addOutcome(self, test, status, err=None, reason=None, params=None):
         assert self._last_result_msg is not None
-        super().addOutcome(test, status, err, reason)
+        super().addOutcome(test, status, err, reason, params)
         self._printer.print_message(test, status, self.status_counters,
                                     self.progress,
                                     self.mean_split_time,
                                     self.last_split_time,
-                                    err=err, reason=reason)
+                                    err=err, reason=reason, params=params)
 
     def print_summary(self):
         prev_counters = self.load_status()

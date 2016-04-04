@@ -16,12 +16,15 @@ from collections import namedtuple
 from datetime import timedelta
 
 from hunittest.line_printer import strip_ansi_escape
-from hunittest.timedeltalib import timedelta_to_hstr
+from hunittest.timedeltalib import timedelta_to_hstr as _timedelta_to_hstr
 from hunittest.timedeltalib import timedelta_to_unit
 from hunittest.stopwatch import StopWatch
 from hunittest.utils import mkdir_p
 from hunittest.utils import safe_getcwd
 from hunittest.utils import load_single_test_case
+
+def timedelta_to_hstr(tdelta):
+    return _timedelta_to_hstr(tdelta, precision=2)
 
 class _LogLinePrinter(object):
     """Proxy over a LinePrinter.

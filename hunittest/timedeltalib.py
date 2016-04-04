@@ -15,20 +15,46 @@ def strip_decimal(v):
     else:
         return int(v)
 
-def timedelta_to_hstr(tdelta):
+def significant_units(max_unit, precision=3):
+    assert precision > 0
+    found = False
+    sign_units = []
+    for i, u in enumerate(reversed(TimeUnit)):
+        if u is max_unit:
+            found = True
+        if found:
+            sign_units.append(u)
+            if len(sign_units) >= precision:
+                break
+    return sign_units
+
+def timedelta_to_hstr(tdelta, precision=3):
     """A prettier string version of a timedelta.
 
     Print units for each part (weeks, days, hours, etc...) and skip them
     when they are zero.
+
+    The 'precision' keyword argument indicates how many units are shown from
+    the greatest one. For instance a result of '1m 2s 3ms 4us' will be printed
+    like '1m 2s' with a precision of 2. None means all precision.
     """
-    result = []
+    parts = []
+    units = []
     r = tdelta
     for u in reversed(TimeUnit):
         q, r = divmod(r, u.value)
         if q != 0:
-            result.append("{:d}{}".format(q, u.abbrev))
-    if result:
-        return " ".join(result)
+            parts.append("{:d}{}".format(q, u.abbrev))
+            units.append(u)
+    if parts:
+        assert len(units) == len(parts)
+        # Select only significant parts
+        sign_units = significant_units(units[0], precision)
+        sign_parts = []
+        for i in range(len(parts)):
+            if units[i] in sign_units:
+                sign_parts.append(parts[i])
+        return " ".join(sign_parts)
     else:
         return "0" + TimeUnit.microsecond.abbrev
 

@@ -196,23 +196,33 @@ def collect_all(test_specs, pattern, top_level_directory, top_level_only=False):
         test_specs = itertools.chain(list_packages_from(top_level_directory),
                                      list_modules_from(top_level_directory,
                                                        pattern))
-    for test_spec in test_specs:
-        tst, value = get_test_spec_type(test_spec, top_level_directory)
-        if tst is TestSpecType.package:
-            yield from collect_all_from_package(value, pattern,
-                                                top_level_only=top_level_only)
-        elif tst is TestSpecType.module:
-            yield from collect_all_from_module(value,
-                                               top_level_only=top_level_only)
-        elif tst is TestSpecType.test_case:
-            if not top_level_only:
-                yield from collect_all_from_test_case(value)
-        elif tst is TestSpecType.test_method:
-            if not top_level_only:
-                yield pyname_join((value.__module__, value.__qualname__))
-        else:
-            raise RuntimeError("unsupported test spec type: {}"
-                               .format(tst))
+    def gen():
+        for test_spec in test_specs:
+            tst, value = get_test_spec_type(test_spec, top_level_directory)
+            if tst is TestSpecType.package:
+                yield from collect_all_from_package(
+                    value, pattern, top_level_only=top_level_only)
+            elif tst is TestSpecType.module:
+                yield from collect_all_from_module(
+                    value, top_level_only=top_level_only)
+            elif tst is TestSpecType.test_case:
+                if top_level_only:
+                    yield value.__module__
+                else:
+                    yield from collect_all_from_test_case(value)
+            elif tst is TestSpecType.test_method:
+                if top_level_only:
+                    yield value.__module__
+                else:
+                    yield pyname_join((value.__module__, value.__qualname__))
+            else:
+                raise RuntimeError("unsupported test spec type: {}"
+                                   .format(tst))
+    seen = set()
+    for i in gen():
+        if i not in seen:
+            seen.add(i)
+            yield i
 
 def _check_top_level_directory(top_level_directory):
     if not os.path.isabs(top_level_directory):

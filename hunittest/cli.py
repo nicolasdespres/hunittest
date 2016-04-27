@@ -389,7 +389,7 @@ def main(argv):
         cov.erase()
         try:
             with cov:
-                test_names = reported_collect(printer, top_level_test_specs,
+                test_names = reported_collect(printer, options.test_specs,
                                               options.pattern, filter_rules,
                                               top_level_directory,
                                               progress=not options.no_progress)

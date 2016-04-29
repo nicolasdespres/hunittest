@@ -367,10 +367,10 @@ class ResultPrinter:
             return
         assert self._hbar_len is not None
         chanstr = " {} ".format(channel.upper())
-        start = (self._hbar_len - len(chanstr)) // 2
+        start, rem = divmod(self._hbar_len - len(chanstr), 2)
         msg = "-" * start
         msg += chanstr
-        msg += "-" * start
+        msg += "-" * (start + rem)
         self._printer.log_write_nl(msg)
         for line in output.splitlines():
             self._printer.log_write_nl(line)

@@ -130,7 +130,7 @@ def get_test_spec_type(test_spec, top_level_directory):
     if not moddir.startswith(top_level_directory):
         raise InvalidTestSpecError(
             test_spec,
-            "package or module '{modname}' (from '{modpath}'), "
+            "package or module '{modname}' (from '{moddir}'), "
             "refers outside of your top level directory '{top_level_dir}'"
             .format(modname=mod.__name__,
                     moddir=moddir,

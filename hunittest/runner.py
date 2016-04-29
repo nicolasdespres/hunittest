@@ -10,7 +10,7 @@ import traceback
 from collections import namedtuple
 
 from hunittest.unittestresultlib import HTestResultClient
-from hunittest.unittestresultlib import ResultMsg
+from hunittest.unittestresultlib import TestResultMsg
 from hunittest.utils import load_single_test_case
 from hunittest.coveragelib import CoverageInstrument
 
@@ -63,7 +63,7 @@ def run_concurrent_tests(test_names, result, njobs=1, cov_args=None):
 
     This function is executed in the master process. It distribute tests to
     each worker. The scheduling is trivial: when a worker finished the next
-    not-yet-run test spec is sent to it. Workers later send a ResultMsg back
+    not-yet-run test spec is sent to it. Workers later send a TestResultMsg back
     to the master process. If an error occurred the worker is stopped and never
     re-spawned. A bidirectional connection pipe
     connects the master process to each of its worker.
@@ -116,7 +116,7 @@ def run_concurrent_tests(test_names, result, njobs=1, cov_args=None):
                     worker_id, obj = msg
                     if isinstance(obj, _ErrMsg):
                         obj.print_exception("[worker{}]".format(worker_id))
-                    elif isinstance(obj, ResultMsg):
+                    elif isinstance(obj, TestResultMsg):
                         result.process_result(obj)
                         # Start next test if there is still some
                         if t < ntest and not result.shouldStop:

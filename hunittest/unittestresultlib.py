@@ -856,9 +856,9 @@ TestResultMsg \
                   "results"))   # A list of SubtestResult object.
 
 class HTestResultClient(CheckCWDDidNotChanged,
+                        Failfast,
                         CaptureStdio,
-                        TestExecStopwatch,
-                        Failfast):
+                        TestExecStopwatch):
     """Client side of result class used by the multi-process runner.
 
     An instance of this class run in each worker process. The outcome of each
@@ -867,8 +867,8 @@ class HTestResultClient(CheckCWDDidNotChanged,
     It partially implements the unittest.TestResult interface.
     """
 
-    def __init__(self, worker_id, conn):
-        super().__init__()
+    def __init__(self, worker_id, conn, **kwds):
+        super().__init__(**kwds)
         self._worker_id = worker_id
         self._conn = conn
         self._result_attrs = None

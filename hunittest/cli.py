@@ -407,10 +407,14 @@ def main(argv):
                     result = HTestResult(**result_options)
                     run_monoproc_tests(test_names, result, cov)
                 else:
+                    worker_kwargs = dict(
+                        failfast=failfast
+                    )
                     result = HTestResultServer(**result_options)
                     run_concurrent_tests(test_names, result,
                                          njobs=options.njobs,
-                                         cov_args=cov_args)
+                                         cov_args=cov_args,
+                                         worker_kwargs=worker_kwargs)
             result.print_summary()
             printer.new_line()
         except Exception as e:

@@ -27,14 +27,14 @@ def _worker_run_aux(test_name, result):
     test_case = load_single_test_case(test_name)
     test_case.run(result)
 
-def _worker_run(conn, worker_id, cov_args):
+def _worker_run(conn, worker_id, worker_kwargs, cov_args):
     """Executed in the worker process.
     """
     if cov_args is None:
         cov_args = {}
     cov = CoverageInstrument(**cov_args)
     with conn, cov:
-        result = HTestResultClient(worker_id, conn)
+        result = HTestResultClient(worker_id, conn, **worker_kwargs)
         done = False
         while not done:
             try:
@@ -58,7 +58,8 @@ def _worker_run(conn, worker_id, cov_args):
                     raise RuntimeError("worker {} received unexpected message: "
                                        "{!r}".format(worker_id, msg))
 
-def run_concurrent_tests(test_names, result, njobs=1, cov_args=None):
+def run_concurrent_tests(test_names, result, njobs=1, cov_args=None,
+                         worker_kwargs=None):
     """Run multiple tests concurrently using multiple process.
 
     This function is executed in the master process. It distribute tests to
@@ -86,7 +87,8 @@ def run_concurrent_tests(test_names, result, njobs=1, cov_args=None):
     workers = []
     for i in range(nproc):
         my_conn, worker_conn = mp.Pipe()
-        proc = mp.Process(target=_worker_run, args=(worker_conn, i, cov_args))
+        proc = mp.Process(target=_worker_run,
+                          args=(worker_conn, i, worker_kwargs, cov_args))
         conns.append(my_conn)
         workers.append(proc)
         proc.start()

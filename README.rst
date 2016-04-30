@@ -47,6 +47,7 @@ Features
 * Report detailed test status delta between two runs. Useful to see
   how many tests have been fixed/broken by your change.
 * Report modification of working directory during test.
+* Support subtests.
 * Tested with Python 3.4.x
 
 Installation

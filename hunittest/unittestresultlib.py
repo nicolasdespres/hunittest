@@ -280,12 +280,15 @@ class ResultPrinter:
         self._printer.overwrite_message(prefix, printed_test_name,
                                         suffix, ellipse_index=1)
 
+    def reset(self):
+        self._subtests_printed = False
+        self._header_printed = False
+
     def print_message(self, test, test_status, status_counters, progress,
                       mean_split_time, last_split_time,
                       err=None, reason=None, params=None):
         if test_status is Status.RUNNING:
-            self._subtests_printed = False
-            self._header_printed = False
+            self.reset()
         test_name = get_test_name(test)
         if self._show_progress:
             self._print_progress_message(test_name, test_status,
@@ -342,6 +345,7 @@ class ResultPrinter:
 
     def _print_error(self, test, test_status, err, params=None):
         assert err is not None
+        assert not self._header_printed
         self._print_header(test, test_status, params=params)
         self._printer.log_write_nl("-" * self._hbar_len)
         ### Print exception traceback
@@ -935,7 +939,12 @@ class HTestResultServer(Walltime,
         ### Update internal state.
         self._last_result_msg = result_msg
         self._total_split_time += self.last_split_time
-        for result in result_msg.results:
+        # Force reset here because startTest() last call may have been for
+        # another test than us since several are running in parallel. The
+        # effect is that the header will always be printed but it is
+        # important since last progress message may be for another test.
+        self._printer.reset()
+        for result in result_msg.results: # Show result for each subtest.
             ### Dispatch handling of the received message.
             self.addOutcome(result_msg.test_name, result.status,
                             err=result.error,
@@ -958,9 +967,9 @@ class HTestResultServer(Walltime,
                                 self._last_result_msg.stderr)
 
     def addSubTest(self, test, subtest, err):
-        super().addSubTest(test, subtest, err)
-        # We cannot print IOs for each sub test because the test runner
-        # calls 'addSubTest' once the main test has returned.
+        # We do not have sub test in this class since we receive sub tests
+        # result in batch.
+        raise NotImplementedError
 
     def addOutcome(self, test, status, err=None, reason=None, params=None):
         assert self._last_result_msg is not None

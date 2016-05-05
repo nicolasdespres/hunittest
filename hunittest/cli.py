@@ -237,7 +237,7 @@ def build_cli():
     parser.add_argument(
         "-p", "--pattern",
         action="store",
-        default=r"^test_",
+        default=r"test*.py",
         help="Only module name matching this pattern gets collected")
     parser.add_argument(
         "-e", "--exclude",

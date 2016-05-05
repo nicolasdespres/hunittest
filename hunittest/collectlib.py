@@ -12,6 +12,7 @@ import unittest
 import functools
 import sys
 import itertools
+from fnmatch import fnmatch
 
 from hunittest.utils import pyname_join
 from hunittest.utils import is_pkgdir
@@ -32,9 +33,7 @@ def list_modules_from(dirpath, pattern):
     discovery procedure starts from.
     """
     for name in os.listdir(dirpath):
-        if os.path.isfile(name) \
-           and name.endswith(".py") \
-           and re.match(pattern, name):
+        if os.path.isfile(name) and fnmatch(name, pattern):
             yield drop_pyext(name)
 
 def is_test_case(obj):
@@ -70,7 +69,7 @@ def collect_all_test_modules(package, pattern, top_level_only=False):
     # Using import_module() is fine.
     for _, name, ispkg in pkgutil.walk_packages(package.__path__,
                                                 package.__name__+'.'):
-        if not ispkg and re.match(pattern, re.sub(r"^.*\.", "", name)):
+        if not ispkg and fnmatch(re.sub(r"^.*\.", "", name) + ".py", pattern):
             if top_level_only:
                 yield name
             else:

@@ -8,6 +8,7 @@ import os
 import pkgutil
 import re
 from importlib import import_module
+from fnmatch import fnmatch
 
 from hunittest.utils import pyname_join
 from hunittest.utils import mod_split
@@ -89,7 +90,7 @@ def argcomplete_modules(package, pattern, prefix):
     for _, name, ispkg in pkgutil.iter_modules(path=[directory]):
         if not name.startswith(prefix):
             continue
-        if ispkg or re.match(pattern, name):
+        if ispkg or fnmatch(name+".py", pattern):
             fullname = pyname_join((package.__name__, name))
             try:
                 import_module(fullname)

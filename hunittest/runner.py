@@ -11,7 +11,6 @@ from collections import namedtuple
 
 from hunittest.unittestresultlib import HTestResultClient
 from hunittest.unittestresultlib import TestResultMsg
-from hunittest.utils import load_single_test_case
 from hunittest.coveragelib import CoverageInstrument
 
 class _ErrMsg(namedtuple("ErrMsg", ("type", "value", "msg"))):
@@ -23,9 +22,11 @@ class _ErrMsg(namedtuple("ErrMsg", ("type", "value", "msg"))):
             for line in item.splitlines():
                 print(prefix, line)
 
+_testLoader = unittest.loader.defaultTestLoader
+
 def _worker_run_aux(test_name, result):
-    test_case = load_single_test_case(test_name)
-    test_case.run(result)
+    test = _testLoader.loadTestsFromNames([test_name])
+    test(result)
 
 def _worker_run(conn, worker_id, worker_kwargs, cov_args):
     """Executed in the worker process.
@@ -146,5 +147,5 @@ def run_monoproc_tests(test_names, result, cov):
             # If a test has failed and -f/--failfast is set we must exit now.
             if result.shouldStop:
                 break
-            test_case = load_single_test_case(test_name)
-            test_case.run(result)
+            test = _testLoader.loadTestsFromNames([test_name])
+            test(result)

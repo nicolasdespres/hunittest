@@ -15,6 +15,7 @@ from enum import Enum
 from collections import namedtuple
 from datetime import timedelta
 import textwrap
+from fnmatch import fnmatch
 
 from hunittest.line_printer import strip_ansi_escape
 from hunittest.timedeltalib import timedelta_to_hstr as _timedelta_to_hstr
@@ -213,12 +214,13 @@ class ResultPrinter:
 
     _STATUS_MAXLEN = max(len(s.value) for s in Status)
 
-    def __init__(self, printer, top_level_directory,
+    def __init__(self, printer, top_level_directory, pattern,
                  log_filename=None,
                  strip_unittest_traceback=False,
                  show_progress=True):
         self._printer = _LogLinePrinter(printer, log_filename)
         self._top_level_directory = top_level_directory
+        self._pattern = pattern
         self._strip_unittest_traceback=strip_unittest_traceback
         self._show_progress = show_progress
         self._hbar_len = None
@@ -233,6 +235,9 @@ class ResultPrinter:
         self.RESET = self._printer.term_info.reset_all
         self.TRACE_HL = self._printer.term_info.fore_white \
                         + self._printer.term_info.bold
+        self.TEST_TRACE_HL = self._printer.term_info.fore_white \
+                             + self._printer.term_info.bold \
+                             + self._printer.term_info.underline
 
     def status_color(self, status):
         return getattr(self, "{}_COLOR".format(status.value.upper()))
@@ -317,6 +322,13 @@ class ResultPrinter:
             return None
         return issubdir(filename, self._top_level_directory)
 
+    def _is_user_test_filename(self, line):
+        filename = self._extract_filename_from_error_line(line)
+        if filename is None:
+            return None
+        return issubdir(filename, self._top_level_directory) \
+            and fnmatch(os.path.basename(filename), self._pattern)
+
     def _is_unittest_filename(self, line):
         filename = self._extract_filename_from_error_line(line)
         if filename is None:
@@ -358,11 +370,16 @@ class ResultPrinter:
         for i in range(len(all_lines)-1):
             lines = all_lines[i]
             is_user_filename = self._is_user_filename(lines)
+            is_user_test_filename = self._is_user_test_filename(lines)
             skip_next = False
             for line in lines.splitlines():
+                leading_space = re.sub(r"^(\s*).*$", "\\1", line)
                 if skip_next:
                     continue
-                if is_user_filename:
+                if is_user_test_filename:
+                    formatted_line = leading_space + self.TEST_TRACE_HL \
+                                     + line.strip() + self.RESET
+                elif is_user_filename:
                     formatted_line = self.TRACE_HL + line + self.RESET
                 else:
                     if self._strip_unittest_traceback \

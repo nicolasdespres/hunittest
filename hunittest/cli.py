@@ -363,6 +363,7 @@ def main(argv):
          ResultPrinter(
              printer,
              top_level_directory,
+             options.pattern,
              log_filename=log_filename,
              strip_unittest_traceback=options.strip_unittest_traceback,
              show_progress=not options.no_progress) as result_printer:

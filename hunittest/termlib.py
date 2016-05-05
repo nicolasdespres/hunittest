@@ -86,7 +86,8 @@ class TermInfo(object):
                                     ("reset_all", "sgr0", ""),
                                     ("hide_cursor", "civis", ""),
                                     ("show_cursor", "cnorm", ""),
-                                    ("bold", "bold", "")):
+                                    ("bold", "bold", ""),
+                                    ("underline", "smul", "")):
             self._setstrcapa(attr, capa, default)
         ### Initialize colors
         self.color_enabled = False

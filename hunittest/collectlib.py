@@ -16,6 +16,7 @@ import itertools
 from hunittest.utils import pyname_join
 from hunittest.utils import is_pkgdir
 from hunittest.utils import drop_pyext
+from hunittest.utils import issubdir
 
 
 def list_packages_from(dirpath):
@@ -127,7 +128,7 @@ def get_test_spec_type(test_spec, top_level_directory):
         raise first_import_err
     modpath = os.path.realpath(mod.__file__)
     moddir = os.path.dirname(modpath)
-    if not moddir.startswith(top_level_directory):
+    if not issubdir(moddir, top_level_directory):
         raise InvalidTestSpecError(
             test_spec,
             "package or module '{modname}' (from '{moddir}'), "

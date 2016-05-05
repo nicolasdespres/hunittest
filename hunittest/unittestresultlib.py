@@ -22,6 +22,7 @@ from hunittest.timedeltalib import timedelta_to_unit
 from hunittest.stopwatch import StopWatch
 from hunittest.utils import mkdir_p
 from hunittest.utils import safe_getcwd
+from hunittest.utils import issubdir
 
 def timedelta_to_hstr(tdelta):
     return _timedelta_to_hstr(tdelta, precision=2)
@@ -314,13 +315,13 @@ class ResultPrinter:
         filename = self._extract_filename_from_error_line(line)
         if filename is None:
             return None
-        return filename.startswith(self._top_level_directory)
+        return issubdir(filename, self._top_level_directory)
 
     def _is_unittest_filename(self, line):
         filename = self._extract_filename_from_error_line(line)
         if filename is None:
             return None
-        return filename.startswith(os.path.dirname(unittest.__file__))
+        return issubdir(filename, os.path.dirname(unittest.__file__))
 
     def _header_prefix(self, test_status):
         status = self.format_test_status(test_status, aligned=False)

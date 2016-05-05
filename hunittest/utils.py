@@ -72,3 +72,11 @@ def silent_stderr():
         yield
     finally:
         sys.stderr = old_stderr
+
+def ensure_trailing_slash(path):
+    if not path.endswith("/"):
+        return path + "/"
+    return path
+
+def issubdir(filepath, dirpath):
+    return filepath.startswith(ensure_trailing_slash(dirpath))

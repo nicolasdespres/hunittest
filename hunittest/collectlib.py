@@ -214,7 +214,7 @@ def collect_all(test_specs, pattern, top_level_directory, top_level_only=False):
                 if top_level_only:
                     yield value.__module__
                 else:
-                    yield pyname_join((value.__module__, value.__qualname__))
+                    yield test_spec
             else:
                 raise RuntimeError("unsupported test spec type: {}"
                                    .format(tst))

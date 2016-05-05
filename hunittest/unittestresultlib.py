@@ -715,10 +715,16 @@ class StatusTracker(BaseResult):
         super().__init__(**kwds)
         self._status_db = status_db
         self.status_counters = StatusCounters()
+        self._counted_test = set()
 
     def addOutcome(self, test, status, err=None, reason=None, params=None):
         super().addOutcome(test, status, err, reason, params)
-        self.status_counters.inc(status)
+        test_name = get_test_name(test)
+        # Do not count twice the same test except if it has parameters which
+        # in this case is a subtests.
+        if params or test_name not in self._counted_test:
+            self.status_counters.inc(status)
+        self._counted_test.add(test_name)
 
     def wasSuccessful(self):
         return self.status_counters.is_successful()

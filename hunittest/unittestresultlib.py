@@ -198,10 +198,15 @@ def _format_exception(exc_type, exc_value, exc_traceback):
         return exc_traceback
     return traceback.format_exception(exc_type, exc_value, exc_traceback)
 
+def _serialize_subtest_params(params):
+    if not params:
+        return params
+    return {str(k):repr(v) for k, v in params.items()}
+
 def _format_subtest_params(params):
     if not params:
         return ''
-    return "{{{}}}".format(", ".join("{}={!r}".format(k, v)
+    return "{{{}}}".format(", ".join("{}={}".format(k, v)
                                      for k, v in params.items()))
 
 class ResultPrinter:
@@ -825,7 +830,7 @@ class HTestResult(Walltime,
                                     self.stopwatch.mean_split_time,
                                     self.stopwatch.last_split_time,
                                     err=err, reason=reason,
-                                    params=params)
+                                    params=_serialize_subtest_params(params))
 
     def print_summary(self):
         prev_counters = self.load_status()
@@ -910,7 +915,7 @@ class HTestResultClient(CheckCWDDidNotChanged,
             status=status,
             error=error,
             reason=reason,
-            params=params,
+            params=_serialize_subtest_params(params),
         ))
 
 class HTestResultServer(Walltime,

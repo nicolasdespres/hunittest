@@ -426,20 +426,26 @@ class ResultPrinter:
         return color + "Ran" + self.RESET
 
     def print_summary(self,
-                      tests_run,
+                      tests_run, subtests_run,
                       prev_status_counters,
                       status_counters,
                       total_time,
                       mean_split_time,
                       wall_time):
+        total_count = str(tests_run)
+        caption = "tests"
+        if subtests_run > 0:
+            total_count += "+{}".format(subtests_run)
+            caption += "(+sub)"
         ### Print main summary
-        formatter = "{run_status} {total_count} tests in "\
+        formatter = "{run_status} {total_count} {caption} in "\
                     "{wall_time} (avg: {mean_split_time}; "\
                     "total: {total_time}; speedup: {speedup:.2f})"
         speedup = total_time / wall_time if wall_time else 0
         msg = formatter.format(
             run_status=self._format_run_status(status_counters),
-            total_count=tests_run,
+            total_count=total_count,
+            caption=caption,
             total_time=timedelta_to_hstr(total_time),
             mean_split_time=timedelta_to_hstr(mean_split_time),
             wall_time=timedelta_to_hstr(wall_time),
@@ -684,12 +690,19 @@ class RunProgress(BaseResult):
 
     def __init__(self, total_tests, **kwds):
         super().__init__(**kwds)
+        # number of ran tests not including sub tests
         self._tests_run = 0
+        # total number of tests not including subtests
         self._total_tests = total_tests
+        self._subtests_run = 0
 
     @property
     def testsRun(self):
         return self._tests_run
+
+    @property
+    def subtestsRun(self):
+        return self._subtests_run
 
     @property
     def total_tests(self):
@@ -702,6 +715,11 @@ class RunProgress(BaseResult):
     def startTest(self, test):
         self._tests_run += 1
         super().startTest(test)
+
+    def addOutcome(self, test, status, err=None, reason=None, params=None):
+        super().addOutcome(test, status, err, reason, params)
+        if params:
+            self._subtests_run += 1
 
 class StatusTracker(BaseResult):
     """Count test for each status.
@@ -840,7 +858,7 @@ class HTestResult(Walltime,
     def print_summary(self):
         prev_counters = self.load_status()
         self._printer.print_summary(
-            self._tests_run,
+            self.testsRun, self.subtestsRun,
             prev_counters,
             self.status_counters,
             self.stopwatch.total_split_time,
@@ -993,7 +1011,7 @@ class HTestResultServer(Walltime,
     def print_summary(self):
         prev_counters = self.load_status()
         self._printer.print_summary(
-            self._tests_run,
+            self.testsRun, self.subtestsRun,
             prev_counters,
             self.status_counters,
             self.total_split_time,

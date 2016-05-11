@@ -362,7 +362,9 @@ class ResultPrinter:
 
     def _print_error(self, test, test_status, err, params=None):
         assert err is not None
-        assert not self._header_printed
+        # Do not assert self._header_printed is False here, because this
+        # method can be called multiple times per test (in case of error
+        # raised from tearDown()).
         self._print_header(test, test_status, params=params)
         self._printer.log_write_nl("-" * self._hbar_len)
         ### Print exception traceback

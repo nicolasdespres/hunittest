@@ -9,6 +9,7 @@ import pkgutil
 import re
 from importlib import import_module
 from fnmatch import fnmatch
+import unittest
 
 from hunittest.utils import pyname_join
 from hunittest.utils import mod_split
@@ -94,6 +95,8 @@ def argcomplete_modules(package, pattern, prefix):
             fullname = pyname_join((package.__name__, name))
             try:
                 import_module(fullname)
+            except unittest.SkipTest:
+                pass
             except:
                 warn("failed to load module {!r}".format(fullname))
             else:

@@ -42,6 +42,11 @@ class Rule(namedtuple("BaseRule", ("operator", "pattern"))):
         return "{} /{}/".format(self.operator.value, self.pattern)
 
     def match(self, string):
+        # FIXME(Nicolas Despres): Remove this test. It is here only
+        #  because when used from hunittest.cli.reported_collect() we
+        #  may encounter other kind of object.
+        if not isinstance(string, str):
+            return True
         # print("STRING", repr(string))
         if re.search(self.pattern, string):
             if self.include:

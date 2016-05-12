@@ -25,6 +25,7 @@ from hunittest.filter_rules import FilterAction
 from hunittest.filter_rules import PatternType
 from hunittest.filter_rules import FilterRules
 from hunittest.collectlib import collect_all
+from hunittest.collectlib import SkippedTestSpec
 from hunittest.completionlib import test_spec_completer
 from hunittest.collectlib import setup_top_level_directory
 from hunittest.utils import AutoEnum
@@ -61,15 +62,26 @@ def reported_collect(printer, test_specs, pattern, filter_rules,
     collection = collect_all(test_specs, pattern, top_level_directory,
                              top_level_only=top_level_only)
     test_names = []
-    for n, test_name in enumerate(filter_rules(collection)):
-        if progress:
-            prefix = "collecting {:d}: ".format(n+1)
-            msg = test_name
-            printer.overwrite_message(prefix, msg, ellipse_index=1)
-        if previous_errors is not None and test_name in previous_errors:
-            test_names.insert(0, test_name)
+    n = 0
+    for test_name in filter_rules(collection):
+        if isinstance(test_name, SkippedTestSpec):
+            if progress:
+                # TODO(Nicolas Despres): Use unittestlib.ResultPrinter here
+                #  because we want to report it in color and to have it
+                #  written into the log.
+                msg = "SKIP: {}: {}".format(test_name.test_spec,
+                                            test_name.reason)
+                printer.overwrite_nl(msg)
         else:
-            test_names.append(test_name)
+            if progress:
+                prefix = "collected {:d}: ".format(n+1)
+                msg = test_name
+                printer.overwrite_message(prefix, msg, ellipse_index=1)
+            if previous_errors is not None and test_name in previous_errors:
+                test_names.insert(0, test_name)
+            else:
+                test_names.append(test_name)
+            n += 1
     if len(test_names) == 0:
         printer.overwrite("no test collected")
     else:

@@ -13,6 +13,7 @@ import functools
 import sys
 import itertools
 from fnmatch import fnmatch
+import types
 
 from hunittest.utils import pyname_join
 from hunittest.utils import is_pkgdir
@@ -73,13 +74,17 @@ def collect_all_test_modules(package, pattern, top_level_only=False):
             if top_level_only:
                 yield name
             else:
-                yield import_module(name)
+                try:
+                    yield import_module(name)
+                except unittest.SkipTest as e:
+                    yield SkippedTestSpec(name, str(e))
 
 class TestSpecType(Enum):
     package = 1
     module = 2
     test_case = 3
     test_method = 4
+    skipped = 5
 
 def is_pkg(obj):
     return hasattr(obj, "__file__") \
@@ -94,6 +99,16 @@ class InvalidTestSpecError(Exception):
     def __str__(self):
         return "invalid test spec '{}': {}".format(self.test_spec,
                                                    self.message)
+
+class SkippedTestSpec:
+
+    def __init__(self, test_spec, reason):
+        """Create a new SkippedTestSpec object from the *test_spec* we were
+        importing when we caught the SkipTest exception and the reason
+        attached to the exception.
+        """
+        self.test_spec = test_spec
+        self.reason = reason
 
 def get_test_spec_type(test_spec, top_level_directory):
     _check_top_level_directory(top_level_directory)
@@ -114,6 +129,11 @@ def get_test_spec_type(test_spec, top_level_directory):
         name_to_import = pyname_join(spec[:i+1])
         try:
             mod = import_module(name_to_import)
+        except unittest.SkipTest as e:
+            return (TestSpecType.skipped,
+                    SkippedTestSpec(name_to_import, str(e)))
+            skipped = True
+            break
         except ImportError as e:
             if first_import_err is None:
                 first_import_err = e
@@ -182,8 +202,11 @@ def collect_all_from_module(test_module, top_level_only=False):
 def collect_all_from_package(package, pattern, top_level_only=False):
     for test_module in collect_all_test_modules(package, pattern,
                                                 top_level_only=top_level_only):
-        yield from collect_all_from_module(test_module,
-                                           top_level_only=top_level_only)
+        if isinstance(test_module, types.ModuleType):
+            yield from collect_all_from_module(test_module,
+                                               top_level_only=top_level_only)
+        else:
+            yield test_module
 
 def collect_all(test_specs, pattern, top_level_directory, top_level_only=False):
     """Collect all test case from the given test specification.
@@ -215,6 +238,8 @@ def collect_all(test_specs, pattern, top_level_directory, top_level_only=False):
                     yield value.__module__
                 else:
                     yield test_spec
+            elif tst is TestSpecType.skipped:
+                yield value
             else:
                 raise RuntimeError("unsupported test spec type: {}"
                                    .format(tst))

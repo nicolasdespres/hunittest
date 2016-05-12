@@ -337,6 +337,7 @@ def build_cli():
     return parser
 
 def main(argv):
+    raise RuntimeError("on-purpose")
     cli = build_cli()
     if ARGCOMPLETE_ENABLED:
         # It is tempting to set a validator that always return True so that

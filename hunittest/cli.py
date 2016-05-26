@@ -406,7 +406,7 @@ def main(argv):
                                               options.pattern, filter_rules,
                                               top_level_directory,
                                               progress=not options.no_progress)
-            if options.collect_only:
+            if options.collect_only or len(test_names) == 0:
                 printer.new_line()
                 return 0
             result_options = dict(

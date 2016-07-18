@@ -147,7 +147,8 @@ def get_test_spec_type(test_spec, top_level_directory):
         raise first_import_err
     modpath = os.path.realpath(mod.__file__)
     moddir = os.path.dirname(modpath)
-    if not issubdir(moddir, top_level_directory):
+    if moddir != top_level_directory \
+       and not issubdir(moddir, top_level_directory):
         raise InvalidTestSpecError(
             test_spec,
             "package or module '{modname}' (from '{moddir}'), "

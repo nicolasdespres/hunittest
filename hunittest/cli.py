@@ -247,6 +247,10 @@ def build_cli():
         action="store_true",
         help="Disable smart terminal output.")
     parser.add_argument(
+        "--tty",
+        action="store_true",
+        help="Always consider output stream as a tty.")
+    parser.add_argument(
         "-p", "--pattern",
         action="store",
         default=r"test*.py",
@@ -371,6 +375,7 @@ def main(argv):
     result = None
     with LinePrinter(quiet=options.quiet,
                      color_mode=options.color,
+                     isatty=True if options.tty else None,
                      verbose=options.verbose) as printer, \
          ResultPrinter(
              printer,
@@ -453,7 +458,8 @@ def main(argv):
                 import pdb
                 pdb.post_mortem(result.last_traceback)
         else:
-            maybe_spawn_pager(options, log_filename, printer.isatty)
+            maybe_spawn_pager(options, log_filename,
+                              False if options.tty else printer.isatty)
             # maybe_spawn_pager may never return if the pager has been
             # spawned. Otherwise we return 1.
         return 1

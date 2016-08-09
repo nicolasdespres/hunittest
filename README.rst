@@ -12,7 +12,7 @@ Welcome to hunittest
 
 |hunittest| is a user friendly command line interface for unittest_.
 It is to unittest what htop is to top. Just a nicer command line interface.
-It does not add or change anything of unittest_ module API.
+It does not add or change anything to unittest_ module API.
 
 Features
 ========
@@ -61,7 +61,7 @@ Directly from the source
 
 .. code:: bash
 
-    $ git clone <FIXME:hunittesturl>
+    $ git clone https://github.com/nicolasdespres/hunittest.git
     $ cd hunittest
     $ python3 setup.py develop
 

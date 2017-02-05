@@ -22,7 +22,9 @@ def read(*rnames):
 
 setup(
     name="hunittest",
-    version="0.1.0",
+    # It is '0.0.0' now because there is no official release yet and no
+    # release process yet. We support the 'develop' mode only at the moment.
+    version="0.0.0",
     # We only have a single package to distribute and no individual modules
     packages=["hunittest"],
     py_modules=[],

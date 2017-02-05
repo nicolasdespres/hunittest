@@ -73,7 +73,7 @@ To uninstall it, you ca do:
 
 However, this won't remove the easy install entry script generated.
 
-shell completion
+Shell completion
 ----------------
 
 To enable shell completion follow instructions in argcomplete_ documentation.

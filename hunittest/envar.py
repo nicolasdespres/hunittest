@@ -3,5 +3,8 @@
 """
 
 _PREFIX = "HUNITTEST"
-WORKDIR = "_".join((_PREFIX, "WORKDIR"))
-SUMMARY = "_".join((_PREFIX, "SUMMARY"))
+def _mkvar(name):
+    return "_".join((_PREFIX, name))
+
+WORKDIR = _mkvar("WORKDIR")
+SUMMARY = _mkvar("SUMMARY")

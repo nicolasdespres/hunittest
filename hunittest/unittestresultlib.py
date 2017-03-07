@@ -460,6 +460,25 @@ class ResultPrinter:
         if stdout_value or stderr_value:
             self._printer.log_write_nl("-" * self._hbar_len)
 
+    def print_summary(self, *args, **kwargs):
+        return SummaryPrinter(self._printer).print_summary(*args, **kwargs)
+
+    def close(self):
+        self._printer.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.close()
+        return False
+
+class SummaryPrinter:
+
+    def __init__(self, printer):
+        self._printer = printer
+        self._color = Color(self._printer.term_info)
+
     def _format_run_status(self, status_counters):
         if status_counters.is_successful():
             color = self._color.STATUS_PASS
@@ -528,16 +547,6 @@ class ResultPrinter:
            or (len(counters_format) == 1 and not pass_status_only):
             msg = " ".join(counters_format).format(**counters)
             self._printer.log_write_nl(msg)
-
-    def close(self):
-        self._printer.close()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, exc_traceback):
-        self.close()
-        return False
 
 class BaseResult:
     """Root result object used has base class for super delegation chain.

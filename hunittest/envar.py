@@ -4,3 +4,4 @@
 
 _PREFIX = "HUNITTEST"
 WORKDIR = "_".join((_PREFIX, "WORKDIR"))
+SUMMARY = "_".join((_PREFIX, "SUMMARY"))

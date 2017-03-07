@@ -126,6 +126,8 @@ Environment variables:
  PAGER - the pager to use (see --pager) (default: {default_pager})
  {envar_workdir} - directory where hunittest stores its stuff
                      (default: {default_workdir})
+ {envar_summary} - when to show detailed summary ; "always" to always show it ;
+                     "on_error" to show it only if there is some erroneous test.
 
 Copyright (c) 2015, Nicolas Desprès
 All rights reserved.
@@ -133,6 +135,7 @@ All rights reserved.
     default_pager=DEFAULT_PAGER,
     envar_workdir=envar.WORKDIR,
     default_workdir=DEFAULT_WORKDIR,
+    envar_summary=envar.SUMMARY,
 )
 
 def git_describe(cwd="."):

@@ -24,6 +24,8 @@ from hunittest.stopwatch import StopWatch
 from hunittest.utils import mkdir_p
 from hunittest.utils import safe_getcwd
 from hunittest.utils import issubdir
+from hunittest import envar
+
 
 def timedelta_to_hstr(tdelta):
     return _timedelta_to_hstr(tdelta, precision=2)
@@ -209,6 +211,20 @@ def _format_subtest_params(params):
         return ''
     return "{{{}}}".format(", ".join("{}={}".format(k, v)
                                      for k, v in params.items()))
+
+class SummaryMode(Enum):
+    always = 0
+    on_error = 1
+
+    @classmethod
+    def from_str(cls, string):
+        for mode in cls:
+            if mode.name == string:
+                return mode
+        raise ValueError("unknown summary mode: "+string)
+
+def get_summary_mode_from_env():
+    return SummaryMode.from_str(os.environ.get(envar.SUMMARY, "on_error"))
 
 class ResultPrinter:
 
@@ -500,7 +516,9 @@ class ResultPrinter:
                 if status is not Status.PASS:
                     pass_status_only = False
         # Print detailed summary only if there were failing tests.
-        if len(counters_format) > 1 \
+        summary_mode = get_summary_mode_from_env()
+        if summary_mode is SummaryMode.always \
+           or len(counters_format) > 1 \
            or (len(counters_format) == 1 and not pass_status_only):
             msg = " ".join(counters_format).format(**counters)
             self._printer.log_write_nl(msg)

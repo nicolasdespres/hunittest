@@ -47,7 +47,7 @@ class NumbersTest(unittest.TestCase):
                 time.sleep(0.1)
                 self.assertEqual(i % 2, i % 2)
 
-    def test_allgood2(self):
+    def test_allgood_but_fail_at_end(self):
         """
         Test that numbers between 0 and 5 are all even.
         """
@@ -55,3 +55,4 @@ class NumbersTest(unittest.TestCase):
             with self.subTest(i=i):
                 time.sleep(0.1)
                 self.assertEqual(i % 2, i % 2)
+        self.fail("on-purpose")

@@ -449,6 +449,7 @@ class ResultPrinter:
                       tests_run, subtests_run,
                       prev_status_counters,
                       status_counters,
+                      subtests_status_counters,
                       total_time,
                       mean_split_time,
                       wall_time):
@@ -476,7 +477,7 @@ class ResultPrinter:
         counters = {}
         counters_format = []
         # If the detailed summary consists only in all passing tests it does
-        # not deserves to be print.
+        # not deserves to be printed.
         pass_status_only = True
         for status in Status.stopped():
             count = status_counters.get(status)
@@ -485,7 +486,12 @@ class ResultPrinter:
             else:
                 count_delta = count - prev_status_counters[status.value]
             if count > 0 or count_delta != 0:
-                s = self.status_color(status) + str(count)
+                sub_count = subtests_status_counters.get(status)
+                if sub_count > 0:
+                    count_str = "{}+{}".format(count-sub_count, sub_count)
+                else:
+                    count_str = str(count)
+                s = self.status_color(status) + count_str
                 if count_delta != 0:
                     s += "({:+d})".format(count_delta)
                 s += self.RESET
@@ -493,7 +499,7 @@ class ResultPrinter:
                 counters_format.append("{{{s}}} {s}".format(s=status.value))
                 if status is not Status.PASS:
                     pass_status_only = False
-        # Print detailed summary only if there were tests.
+        # Print detailed summary only if there were failing tests.
         if len(counters_format) > 1 \
            or (len(counters_format) == 1 and not pass_status_only):
             msg = " ".join(counters_format).format(**counters)
@@ -752,17 +758,18 @@ class StatusTracker(BaseResult):
     def __init__(self, status_db, **kwds):
         super().__init__(**kwds)
         self._status_db = status_db
+        self.subtests_status_counters = StatusCounters()
+        self.tests_status_counters = StatusCounters()
         self.status_counters = StatusCounters()
-        self._counted_test = set()
 
     def addOutcome(self, test, status, err=None, reason=None, params=None):
         super().addOutcome(test, status, err, reason, params)
         test_name = get_test_name(test)
-        # Do not count twice the same test except if it has parameters which
-        # in this case is a subtests.
-        if params or test_name not in self._counted_test:
-            self.status_counters.inc(status)
-        self._counted_test.add(test_name)
+        if params:
+            self.subtests_status_counters.inc(status)
+        else:
+            self.tests_status_counters.inc(status)
+        self.status_counters.inc(status)
 
     def wasSuccessful(self):
         return self.status_counters.is_successful()
@@ -881,6 +888,7 @@ class HTestResult(Walltime,
             self.testsRun, self.subtestsRun,
             prev_counters,
             self.status_counters,
+            self.subtests_status_counters,
             self.stopwatch.total_split_time,
             self.stopwatch.mean_split_time,
             self.walltime)
@@ -1034,6 +1042,7 @@ class HTestResultServer(Walltime,
             self.testsRun, self.subtestsRun,
             prev_counters,
             self.status_counters,
+            self.subtests_status_counters,
             self.total_split_time,
             self.mean_split_time,
             self.walltime)

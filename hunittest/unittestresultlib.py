@@ -262,6 +262,7 @@ class ResultPrinter:
         self._show_progress = show_progress
         self._hbar_len = None
         self._color = Color(self._printer.term_info)
+        self._summary_printer = SummaryPrinter(self._printer)
 
     def format_test_status(self, status, aligned=True):
         msg = status.value.upper()
@@ -461,7 +462,7 @@ class ResultPrinter:
             self._printer.log_write_nl("-" * self._hbar_len)
 
     def print_summary(self, *args, **kwargs):
-        return SummaryPrinter(self._printer).print_summary(*args, **kwargs)
+        return self._summary_printer.print_summary(*args, **kwargs)
 
     def close(self):
         self._printer.close()
@@ -478,6 +479,7 @@ class SummaryPrinter:
     def __init__(self, printer):
         self._printer = printer
         self._color = Color(self._printer.term_info)
+        self.summary_mode = get_summary_mode_from_env()
 
     def _format_run_status(self, status_counters):
         if status_counters.is_successful():
@@ -541,12 +543,19 @@ class SummaryPrinter:
                 if status is not Status.PASS:
                     pass_status_only = False
         # Print detailed summary only if there were failing tests.
-        summary_mode = get_summary_mode_from_env()
-        if summary_mode is SummaryMode.always \
-           or len(counters_format) > 1 \
-           or (len(counters_format) == 1 and not pass_status_only):
+        if self.should_print(len(counters_format), pass_status_only):
             msg = " ".join(counters_format).format(**counters)
             self._printer.log_write_nl(msg)
+
+    def should_print(self, non_zero_counters_count, pass_status_only):
+        if self.summary_mode is SummaryMode.always:
+            return True
+        elif self.summary_mode is SummaryMode.on_error:
+            return non_zero_counters_count > 1 \
+                or (non_zero_counters_count == 1 and not pass_status_only)
+        else:
+            raise RuntimeError("invalid summary mode: {!r}"
+                               .format(self.summary_mode))
 
 class BaseResult:
     """Root result object used has base class for super delegation chain.

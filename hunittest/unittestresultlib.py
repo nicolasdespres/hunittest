@@ -226,6 +226,27 @@ class SummaryMode(Enum):
 def get_summary_mode_from_env():
     return SummaryMode.from_str(os.environ.get(envar.SUMMARY, "on_error"))
 
+class Color:
+
+    def __init__(self, term_info):
+        self.STATUS_PASS = term_info.fore_green
+        self.STATUS_FAIL = term_info.fore_red
+        self.STATUS_SKIP = term_info.fore_blue
+        self.STATUS_XFAIL = term_info.fore_cyan
+        self.STATUS_XPASS = term_info.fore_yellow
+        self.STATUS_ERROR = term_info.fore_magenta
+        self.STATUS_RUNNING = term_info.fore_white
+        self.STATUS_STOP = term_info.fore_white
+        self.RESET = term_info.reset_all
+        self.TRACE_HL = term_info.fore_white \
+                        + term_info.bold
+        self.TEST_TRACE_HL = term_info.fore_white \
+                             + term_info.bold \
+                             + term_info.underline
+
+    def status(self, status):
+        return getattr(self, "STATUS_{}".format(status.value.upper()))
+
 class ResultPrinter:
 
     _STATUS_MAXLEN = max(len(s.value) for s in Status)
@@ -240,23 +261,7 @@ class ResultPrinter:
         self._strip_unittest_traceback=strip_unittest_traceback
         self._show_progress = show_progress
         self._hbar_len = None
-        self.PASS_COLOR = self._printer.term_info.fore_green
-        self.FAIL_COLOR = self._printer.term_info.fore_red
-        self.SKIP_COLOR = self._printer.term_info.fore_blue
-        self.XFAIL_COLOR = self._printer.term_info.fore_cyan
-        self.XPASS_COLOR = self._printer.term_info.fore_yellow
-        self.ERROR_COLOR = self._printer.term_info.fore_magenta
-        self.RUNNING_COLOR = self._printer.term_info.fore_white
-        self.STOP_COLOR = self._printer.term_info.fore_white
-        self.RESET = self._printer.term_info.reset_all
-        self.TRACE_HL = self._printer.term_info.fore_white \
-                        + self._printer.term_info.bold
-        self.TEST_TRACE_HL = self._printer.term_info.fore_white \
-                             + self._printer.term_info.bold \
-                             + self._printer.term_info.underline
-
-    def status_color(self, status):
-        return getattr(self, "{}_COLOR".format(status.value.upper()))
+        self._color = Color(self._printer.term_info)
 
     def format_test_status(self, status, aligned=True):
         msg = status.value.upper()
@@ -264,9 +269,9 @@ class ResultPrinter:
             formatter = "{{:^{:d}}}".format(self._STATUS_MAXLEN)
         else:
             formatter = "{}"
-        return self.status_color(status) \
+        return self._color.status(status) \
             + formatter.format(msg) \
-            + self.RESET
+            + self._color.RESET
 
     def _print_progress_message(self, test_name, test_status,
                                 status_counters, progress,
@@ -277,9 +282,9 @@ class ResultPrinter:
         for status in Status.stopped():
             counter_value = status_counters.get(status)
             if counter_value > 0:
-                counters[status.value] = self.status_color(status) \
+                counters[status.value] = self._color.status(status) \
                                          + str(counter_value) \
-                                         + self.RESET
+                                         + self._color.RESET
                 counters_format_parts.append("{{{s}}}".format(s=status.value))
         if counters_format_parts:
             counter_format = "|" + "|".join(f for f in counters_format_parts)
@@ -395,10 +400,11 @@ class ResultPrinter:
                 if skip_next:
                     continue
                 if is_user_test_filename:
-                    formatted_line = leading_space + self.TEST_TRACE_HL \
-                                     + line.strip() + self.RESET
+                    formatted_line = leading_space + self._color.TEST_TRACE_HL \
+                                     + line.strip() + self._color.RESET
                 elif is_user_filename:
-                    formatted_line = self.TRACE_HL + line + self.RESET
+                    formatted_line \
+                        = self._color.TRACE_HL + line + self._color.RESET
                 else:
                     if self._strip_unittest_traceback \
                        and self._is_unittest_filename(line):
@@ -411,13 +417,13 @@ class ResultPrinter:
         ### Print exception message
         err_lines = str(err[1]).splitlines()
         if len(err_lines) == 0:
-            self._printer.log_write_nl(self.status_color(test_status) \
+            self._printer.log_write_nl(self._color.status(test_status) \
                                        + err[0].__name__ \
-                                       + self.RESET)
+                                       + self._color.RESET)
         else:
-            self._printer.log_write_nl(self.status_color(test_status) \
+            self._printer.log_write_nl(self._color.status(test_status) \
                                        + err[0].__name__ \
-                                       + self.RESET \
+                                       + self._color.RESET \
                                        + ": " \
                                        + err_lines[0])
             for i in range(1, len(err_lines)):
@@ -456,10 +462,10 @@ class ResultPrinter:
 
     def _format_run_status(self, status_counters):
         if status_counters.is_successful():
-            color = self.PASS_COLOR
+            color = self._color.STATUS_PASS
         else:
-            color = self.FAIL_COLOR
-        return color + "Ran" + self.RESET
+            color = self._color.STATUS_FAIL
+        return color + "Ran" + self._color.RESET
 
     def print_summary(self,
                       tests_run, subtests_run,
@@ -507,10 +513,10 @@ class ResultPrinter:
                     count_str = "{}+{}".format(count-sub_count, sub_count)
                 else:
                     count_str = str(count)
-                s = self.status_color(status) + count_str
+                s = self._color.status(status) + count_str
                 if count_delta != 0:
                     s += "({:+d})".format(count_delta)
-                s += self.RESET
+                s += self._color.RESET
                 counters[status.value] = s
                 counters_format.append("{{{s}}} {s}".format(s=status.value))
                 if status is not Status.PASS:

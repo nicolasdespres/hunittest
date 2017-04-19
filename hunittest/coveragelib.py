@@ -215,7 +215,8 @@ def add_coverage_cmdline_arguments(parser):
     else:
         help_msg = "install 'coverage' package to enable this option"
         def coverage_param(param_str):
-            raise argparse.ArgumentTypeError("'coverage' package is installed")
+            raise argparse.ArgumentTypeError("'coverage' package is not "
+                                             "installed")
     parser.add_argument(
         "--coverage",
         type=coverage_param,

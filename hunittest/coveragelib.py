@@ -84,8 +84,8 @@ class CoverageInstrument(object):
                  config_file='.coveragerc',
                  reporters=None,
                  top_level_test_specs=None):
+        self.cov = None
         if not COVERAGE_ENABLED or reporters is None:
-            self.cov = None
             return
         self.top_level_dir = top_level_dir
         self.SITECUSTOMIZE = os.path.join(top_level_dir, "sitecustomize.py")

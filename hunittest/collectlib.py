@@ -46,7 +46,7 @@ def collect_test_cases(module):
                       dir(module)))
 
 def is_test_method(name):
-    return re.match(r"^test_", name)
+    return re.match(r"^test_?", name)
 
 def collect_test_names(test_case):
     return map(functools.partial(getattr, test_case),

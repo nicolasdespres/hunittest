@@ -1,6 +1,6 @@
-====================
-Welcome to hunittest
-====================
+=========
+Hunittest
+=========
 
 .. Macros
 .. |hunittest| replace:: *Hunittest*
@@ -9,9 +9,11 @@ Welcome to hunittest
 .. _ninja: https://github.com/ninja-build/ninja
 .. _argcomplete: https://pypi.python.org/pypi/argcomplete
 .. _coverage: https://pypi.python.org/pypi/coverage/4.0a5
+.. _htop: https://htop.dev
+.. _top: https://www.man7.org/linux/man-pages/man1/top.1.html
 
 |hunittest| is a user friendly command line interface for unittest_.
-It is to unittest what htop is to top. Just a nicer command line interface.
+It is to unittest what htop_ is to top_. Just a nicer command line interface.
 It does not add or change anything to unittest_ module API.
 
 Features

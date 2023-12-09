@@ -558,7 +558,7 @@ class SummaryPrinter:
                                .format(self.summary_mode))
 
 class BaseResult:
-    """Root result object used has base class for super delegation chain.
+    """Root result object used as base class for super delegation chain.
     """
 
     def __init__(self):

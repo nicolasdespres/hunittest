@@ -19,7 +19,7 @@ It does not add or change anything to unittest_ module API.
 Features
 ========
 
-* Work with any unittest test suite
+* Work with any unittest test suites.
 * One line progress status output (inspired by ninja_). Thus,
   buffering of stdout/stderr is always on (no ``-b/--buffer`` option
   like in usual unittest_ driver).
@@ -38,16 +38,16 @@ Features
   you see the exception raised while importing the module instead of
   an uninformative exception coming from unittest_ loading system)
 * Coverage support if you install coverage_.
-* |hunittest| write a log of all error/failures (in ``.hunittest/log``)
-  so that we can review them using the pager of your choice. By
+* |hunittest| write a log of all errors/failures (in ``.hunittest/log``)
+  so that you can review them using the pager of your choice. By
   default, it will always popup the pager if the error log file is not
   empty. You can control this behavior using the ``--pager`` option.
 * Support ``--pdb`` option to start debugging when the first error
   happens.
-* Run test whose last status was error or failure first.
+* Run test whose last status was "error" or "failure" first.
 * Highlight parts of the traceback concerning user's modules.
 * Report detailed test status delta between two runs. Useful to see
-  how many tests have been fixed/broken by your change.
+  how many tests have been fixed/broken by your changes.
 * Report modification of working directory during test.
 * Support sub-tests.
 * Tested with Python 3.4.x
@@ -55,7 +55,7 @@ Features
 Installation
 ============
 
-It requires Python 3.4.x at the moment. And you can install
+It requires Python 3.4.x+ at the moment. And you can install
 argcomplete_ (using ``pip3``) if you really want to enjoy it all.
 
 Directly from the source

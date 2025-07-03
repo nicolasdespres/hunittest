@@ -924,6 +924,9 @@ class HTestResult(Walltime,
                                     err=err, reason=reason,
                                     params=_serialize_subtest_params(params))
 
+    def addDuration(self, test, elapsed):
+        pass  # We already track the duration of each test using the stopwatch.
+
     def print_summary(self):
         prev_counters = self.load_status()
         self._printer.print_summary(
@@ -995,6 +998,9 @@ class HTestResultClient(CheckCWDDidNotChanged,
     def addOutcome(self, test, status, err=None, reason=None, params=None):
         super().addOutcome(test, status, err, reason, params)
         self._save_result(test, status, err, reason, params)
+
+    def addDuration(self, test, elapsed):
+        pass  # We already track the duration of each test using the stopwatch.
 
     def _save_result(self, test, status, err=None, reason=None, params=None):
         if err is not None:

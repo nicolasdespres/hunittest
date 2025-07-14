@@ -343,6 +343,11 @@ def build_cli():
         help="Popup pdb when error/failure happens "
         "(implies --failfast and --jobs 0)")
     parser.add_argument(
+        "--no-returncode",
+        action="store_true",
+        default=False,
+        help="Always returns 0 to prevent raising SystemExit caught by debuggers")
+    parser.add_argument(
         "--version",
         action="store_true",
         help="Print version information and exit")
@@ -363,6 +368,10 @@ def main(argv):
         # but unfortunately it does not work.
         argcomplete.autocomplete(cli)
     options = cli.parse_args(argv[1:])
+    rc = _do_main(options)
+    return 0 if options.no_returncode else rc
+
+def _do_main(options):
     if options.version:
         print(get_version())
         return 0
@@ -468,7 +477,9 @@ def main(argv):
         return 1
 
 def sys_main():
-    sys.exit(main(sys.argv))
+    rc = main(sys.argv)
+    if rc != 0:
+        sys.exit(rc)
 
 if __name__ == "__main__":
     sys_main()

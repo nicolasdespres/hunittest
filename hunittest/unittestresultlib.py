@@ -641,9 +641,10 @@ class Failfast(BaseResult):
     Use it as a mix-in of a unittest's result class.
     """
 
-    def __init__(self, failfast=False, **kwds):
+    def __init__(self, failfast=False, raise_exception=False, **kwds):
         super().__init__(**kwds)
         self._failfast = failfast
+        self._raise_exception = raise_exception
         self._last_traceback = None
 
     @property
@@ -658,6 +659,8 @@ class Failfast(BaseResult):
         super().addOutcome(test, status, err, reason, params)
         if self._failfast and status.is_erroneous():
             if err is not None:
+                if self._raise_exception:
+                    raise err[1]  # Raise so that debugger can catch it.
                 self._last_traceback = err[2]
             self.stop()
 

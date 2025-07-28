@@ -337,6 +337,12 @@ def build_cli():
         default=PagerMode.auto,
         help="Whether to spawn a pager showing the errors/failures log.")
     parser.add_argument(
+        "--raise-exception",
+        action="store_true",
+        default=False,
+        help="Raise the exception so that debugger can catch it "
+        "(implies --failfast and --jobs 0)")
+    parser.add_argument(
         "--pdb",
         action="store_true",
         default=False,
@@ -375,13 +381,13 @@ def _do_main(options):
     if options.version:
         print(get_version())
         return 0
-    if options.pdb:
+    if options.pdb or options.raise_exception:
         options.njobs = 0
     top_level_directory = setup_top_level_directory(options.top_level_directory)
     filter_rules = options.filter_rules
     if filter_rules is None:
         filter_rules = FilterRules()
-    failfast = options.failfast or options.pdb
+    failfast = options.failfast or options.pdb or options.raise_exception
     log_filename = get_log_filename()
     status_db = StatusDB(get_status_filename(options))
     result = None
@@ -430,6 +436,7 @@ def _do_main(options):
                 result_printer=result_printer,
                 total_tests=len(test_names),
                 failfast=failfast,
+                raise_exception=options.raise_exception,
                 status_db=status_db,
             )
             with protect_cwd():
@@ -448,8 +455,13 @@ def _do_main(options):
             result.print_summary()
             printer.new_line()
         except Exception as e:
-            printer.write_exception()
-            return 2
+            if options.raise_exception:
+                # If we raise the exception, it will be caught by the debugger.
+                # We do not want to print the traceback here.
+                raise e
+            else:
+                printer.write_exception()
+                return 2
         finally:
             cov.combine()
             if not options.collect_only:

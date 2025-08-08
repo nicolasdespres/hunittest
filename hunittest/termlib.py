@@ -100,6 +100,14 @@ class TermInfo(object):
             self._init_hardcoded_colors()
         else:
             raise ValueError("invalid color mode: {}".format(color_mode))
+        # Also disable attribute management when color is disabled otherwise
+        # we get escaping sequence in log files.
+        if not self.color_enabled:
+            setattr(self, "reset_all", "")
+            setattr(self, "underline", "")
+            setattr(self, "bold", "")
+            setattr(self, "show_cursor", "")
+            setattr(self, "hide_cursor", "")
 
     def _get_curses(self):
         if not hasattr(self, "_curses"):

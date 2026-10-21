@@ -175,7 +175,7 @@ def maybe_spawn_pager(options, log_filename, isatty=True):
         raise ValueError("invalid pager option: {}".format(options.pager))
 
 def is_pdb_on(options):
-    return not options.quiet and options.njobs <= 0 and options.pdb
+    return not options.quiet and options.njobs == 1 and options.pdb
 
 def is_coverage_on(options):
     return COVERAGE_ENABLED and options.coverage
@@ -309,9 +309,10 @@ def build_cli():
         type=int,
         dest="njobs",
         action="store",
-        default=multiprocessing.cpu_count(),
+        default=0,
         help="Maximum number of tests run concurrently. "
-        "(<= 0 means tests are run in same process)")
+        "(1: means mono-threaded, 0 means guess from CPU count ({cpu_count} on this machine)"
+         .format(cpu_count=multiprocessing.cpu_count()))
     # TODO(Nicolas Despres): Introduce a ColorMode enumeration
     parser.add_argument(
         "-C", "--color",
@@ -341,13 +342,13 @@ def build_cli():
         action="store_true",
         default=False,
         help="Raise the exception so that debugger can catch it "
-        "(implies --failfast and --jobs 0)")
+        "(implies --failfast and --jobs 1)")
     parser.add_argument(
         "--pdb",
         action="store_true",
         default=False,
         help="Popup pdb when error/failure happens "
-        "(implies --failfast and --jobs 0)")
+        "(implies --failfast and --jobs 1)")
     parser.add_argument(
         "--no-returncode",
         action="store_true",
@@ -382,7 +383,7 @@ def _do_main(options):
         print(get_version())
         return 0
     if options.pdb or options.raise_exception:
-        options.njobs = 0
+        options.njobs = 1
     top_level_directory = setup_top_level_directory(options.top_level_directory)
     filter_rules = options.filter_rules
     if filter_rules is None:
@@ -440,7 +441,7 @@ def _do_main(options):
                 status_db=status_db,
             )
             with protect_cwd():
-                if options.njobs == 0:
+                if options.njobs == 1:
                     result = HTestResult(**result_options)
                     run_monoproc_tests(test_names, result, cov)
                 else:

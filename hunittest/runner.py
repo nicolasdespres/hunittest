@@ -59,7 +59,7 @@ def _worker_run(conn, worker_id, worker_kwargs, cov_args):
                     raise RuntimeError("worker {} received unexpected message: "
                                        "{!r}".format(worker_id, msg))
 
-def run_concurrent_tests(test_names, result, njobs=1, cov_args=None,
+def run_concurrent_tests(test_names, result, njobs=0, cov_args=None,
                          worker_kwargs=None):
     """Run multiple tests concurrently using multiple process.
 
@@ -70,6 +70,8 @@ def run_concurrent_tests(test_names, result, njobs=1, cov_args=None,
     re-spawned. A bidirectional connection pipe
     connects the master process to each of its worker.
     """
+    if njobs <= 0:
+        njobs = mp.cpu_count()
 
     def start_test(conn, test_name):
         conn.send(test_name)

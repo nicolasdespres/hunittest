@@ -207,6 +207,16 @@ def load_error_test_specs_from(filename):
     except FileNotFoundError:
         return set()
 
+def get_default_spawn_method():
+    if sys.platform == "win32":
+        return "spawn"
+    else:
+        # Although fork is not the default on macOS, in the context of this test runner
+        # that only collects tests before to spawn the workers, it is safe to use fork
+        # because it is unlikely that the code under test creates file
+        # descriptors or threads at import time. In such case, they have --spawn-method.
+        return "fork"
+
 def build_cli():
     class RawDescriptionWithArgumentDefaultsHelpFormatter(
             argparse.ArgumentDefaultsHelpFormatter,
@@ -313,6 +323,14 @@ def build_cli():
         help="Maximum number of tests run concurrently. "
         "(1: means mono-threaded, 0 means guess from CPU count ({cpu_count} on this machine)"
          .format(cpu_count=multiprocessing.cpu_count()))
+    parser.add_argument(
+        "--spawn-method",
+        action="store",
+        choices=("fork", "spawn"),
+        default=get_default_spawn_method(),
+        help="Method to spawn new processes. "
+        "fork is faster but spawn is more robust."
+    )
     # TODO(Nicolas Despres): Introduce a ColorMode enumeration
     parser.add_argument(
         "-C", "--color",
@@ -449,6 +467,7 @@ def _do_main(options):
                         failfast=failfast
                     )
                     result = HTestResultServer(**result_options)
+                    multiprocessing.set_start_method(options.spawn_method)
                     run_concurrent_tests(test_names, result,
                                          njobs=options.njobs,
                                          cov_args=cov_args,

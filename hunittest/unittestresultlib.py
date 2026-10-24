@@ -429,6 +429,15 @@ class ResultPrinter:
                                        + err_lines[0])
             for i in range(1, len(err_lines)):
                 self._printer.log_write_nl(err_lines[i])
+        ### Print exception notes
+        notes = getattr(err[1], "__notes__", None)
+        if notes is not None:
+            for note in notes:
+                lines = note.splitlines()
+                if lines:
+                    self._printer.log_write_nl("+ " + lines[0])
+                    for line in lines[1:]:
+                        self._printer.log_write_nl("| " + line)
 
     def _print_reason(self, test, test_status, reason):
         assert reason is not None

@@ -42,7 +42,7 @@ def is_test_case(obj: object) -> TypeGuard[type[unittest.TestCase]]:
     return isinstance(obj, type) and issubclass(obj, unittest.TestCase)
 
 def collect_test_cases(
-        module: types.ModuleType) -> filter[type[unittest.TestCase]]:
+        module: types.ModuleType) -> Iterable[type[unittest.TestCase]]:
     return filter(is_test_case,
                   map(lambda x: getattr(module, x),
                       dir(module)))
@@ -50,7 +50,7 @@ def collect_test_cases(
 def is_test_method(name: str) -> re.Match[str] | None:
     return re.match(r"^test_?", name)
 
-def collect_test_names(test_case: type[unittest.TestCase]) -> map[Any]:
+def collect_test_names(test_case: type[unittest.TestCase]) -> Iterable[Any]:
     return map(functools.partial(getattr, test_case),
                filter(is_test_method, dir(test_case)))
 

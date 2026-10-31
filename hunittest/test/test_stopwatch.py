@@ -12,11 +12,6 @@ from hunittest.stopwatch import StopWatch
 
 class TestStopWatch(unittest.TestCase):
 
-    def assertTimedeltaAlmostEqual(
-            self, td1: timedelta, td2: timedelta,
-            prec: float = 1e-3) -> bool:
-        return abs(td1 - td2).total_seconds() <= prec
-
     def test_is_started(self) -> None:
         sw = StopWatch()
         self.assertFalse(sw.is_started)

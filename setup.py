@@ -9,15 +9,13 @@
 
 from setuptools import setup
 import os
-import sys
-import codecs
 
-ROOT_DIR = os.path.dirname(__file__)
+ROOT_DIR: str = os.path.dirname(__file__)
 
-def read(*rnames):
-    with codecs.open(os.path.join(ROOT_DIR, *rnames),
-                     mode="r",
-                     encoding="utf-8") as stream:
+def read(*rnames: str) -> str:
+    with open(os.path.join(ROOT_DIR, *rnames),
+              mode="r",
+              encoding="utf-8") as stream:
         return stream.read()
 
 setup(

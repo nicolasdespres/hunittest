@@ -11,11 +11,10 @@ See also:
 
 import sys
 import traceback
+from types import TracebackType
+from typing import Self, TextIO
 
-from hunittest.termlib import ANSI_ESCAPE_PATTERN
-from hunittest.termlib import strip_ansi_escape
 from hunittest.termlib import ansi_string_truncinfo
-from hunittest.termlib import truncate_ansi_string
 from hunittest.termlib import TermInfo
 
 # TODO(Nicolas Despres): Handle terminal resize events.
@@ -36,27 +35,29 @@ class LinePrinter(object):
     since it may cause confusion. Instead you should use the provided methods.
     """
 
-    def __init__(self, output=sys.stdout, isatty=None, quiet=False,
-                 color_mode="auto", verbose=False):
+    def __init__(
+            self, output: TextIO = sys.stdout, isatty: bool | None = None,
+            quiet: bool = False, color_mode: str = "auto",
+            verbose: bool = False) -> None:
         self._termnfo = TermInfo(output, color_mode)
-        self._cr = self._termnfo.carriage_return
+        self._cr: str | None = self._termnfo.carriage_return
         if not self._cr:
             self._cr = "\r"
-        self._output = output
-        self._isatty = self._termnfo.isatty if isatty is None else isatty
-        self._quiet = quiet
-        self._verbose = verbose
+        self._output: TextIO = output
+        self._isatty: bool = self._termnfo.isatty if isatty is None else isatty
+        self._quiet: bool = quiet
+        self._verbose: bool = verbose
         self.reset()
 
-    def reset(self):
-        self._prev_line = None
-        self._last_is_nl = True
+    def reset(self) -> None:
+        self._prev_line: str | None = None
+        self._last_is_nl: bool = True
 
-    def _write(self, string):
+    def _write(self, string: str) -> None:
         self._last_is_nl = string.endswith("\n")
         self._output.write(string)
 
-    def write(self, string):
+    def write(self, string: object) -> None:
         if not isinstance(string, str):
             raise TypeError("string must be str, not {}"
                             .format(type(string).__name__))
@@ -64,7 +65,7 @@ class LinePrinter(object):
             return
         self._write(string)
 
-    def _write_termctrl(self, string):
+    def _write_termctrl(self, string: str) -> None:
         """Use it only to write special terminal control character.
 
         Most of the time you must use write().
@@ -74,27 +75,25 @@ class LinePrinter(object):
         self._output.write(string)
         self._output.flush()
 
-    def write_nl(self, line, auto=True):
+    def write_nl(self, line: object, auto: bool = True) -> None:
         if not isinstance(line, str):
             raise TypeError("line must be str, not {}"
                             .format(type(line).__name__))
         self.write(line)
         self.new_line(auto=auto)
 
-    def new_line(self, auto=True):
+    def new_line(self, auto: bool = True) -> None:
         if not auto or not self._last_is_nl:
             self.write("\n")
         self.reset()
 
-    def _get_termwidth(self):
+    def _get_termwidth(self) -> int | None:
         assert self._isatty
         return self._termnfo.columns
 
-    def overwrite_message(self, *args, ellipse_index=None, ellipse="..."):
-        for i, arg in enumerate(args):
-            if not isinstance(arg, str):
-                raise TypeError("positional argument {} must be a str, not {}"
-                                .format(i, type(arg).__name__))
+    def overwrite_message(
+            self, *args: str, ellipse_index: int | None = None,
+            ellipse: str = "...") -> None:
         if ellipse_index is None or not self.has_overwrite:
             return self.overwrite("".join(args))
         termwidth = self._get_termwidth()
@@ -105,7 +104,7 @@ class LinePrinter(object):
         if p_trunc < len(prefix):
             return self.overwrite("".join(args))
         suffix = "".join(args[ellipse_index+1:])
-        s_trunc, s_vlen, _ = ansi_string_truncinfo(suffix, termwidth-p_vlen)
+        _, s_vlen, _ = ansi_string_truncinfo(suffix, termwidth-p_vlen)
         msg = args[ellipse_index]
         m_trunc, m_vlen, m_ansi = ansi_string_truncinfo(msg,
                                                         termwidth-p_vlen-s_vlen)
@@ -115,7 +114,7 @@ class LinePrinter(object):
             msg = msg[:p] + ellipse + msg[-p:]
         return self.overwrite(prefix + msg[:m_trunc] + suffix)
 
-    def overwrite(self, line):
+    def overwrite(self, line: object) -> None:
         if not isinstance(line, str):
             raise TypeError("line must be str, not {}"
                             .format(type(line).__name__))
@@ -123,6 +122,9 @@ class LinePrinter(object):
         if self._prev_line is not None and self._prev_line == line:
             return
         written_line = line
+        termwidth: int | None = None
+        line_visual_len = len(line)
+        line_has_ansi = False
         if self.has_overwrite:
             self.write(self._cr)
             termwidth = self._get_termwidth()
@@ -136,7 +138,7 @@ class LinePrinter(object):
         if self.has_overwrite and self._prev_line is not None:
             if self._termnfo.clear_eol:
                 self.write(self._termnfo.clear_eol)
-            else:
+            elif termwidth is not None:
                 truncinfo = ansi_string_truncinfo(self._prev_line, termwidth)
                 _, prev_line_visual_len, _ = truncinfo
                 if line_visual_len < prev_line_visual_len:
@@ -148,7 +150,7 @@ class LinePrinter(object):
         self._prev_line = line
         self._output.flush()
 
-    def overwrite_nl(self, line, auto=True):
+    def overwrite_nl(self, line: object, auto: bool = True) -> None:
         if not isinstance(line, str):
             raise TypeError("line must be str, not {}"
                             .format(type(line).__name__))
@@ -156,48 +158,51 @@ class LinePrinter(object):
         self.new_line(auto=auto)
 
     @property
-    def prev_line(self):
+    def prev_line(self) -> str | None:
         return self._prev_line
 
     @property
-    def output(self):
+    def output(self) -> TextIO:
         return self._output
 
     @property
-    def isatty(self):
+    def isatty(self) -> bool:
         return self._isatty
 
     @property
-    def quiet(self):
+    def quiet(self) -> bool:
         return self._quiet
 
     @property
-    def verbose(self):
+    def verbose(self) -> bool:
         return self._verbose
 
     @property
-    def has_overwrite(self):
+    def has_overwrite(self) -> bool:
         return self._isatty and not self._verbose
 
-    def write_exception(self):
+    def write_exception(self) -> None:
         self.new_line()
         for line in traceback.format_exc().splitlines():
             self.write_nl(line)
 
     @property
-    def term_info(self):
+    def term_info(self) -> TermInfo:
         return self._termnfo
 
-    def show_cursor(self):
+    def show_cursor(self) -> None:
         self._write_termctrl(self._termnfo.show_cursor)
 
-    def hide_cursor(self):
+    def hide_cursor(self) -> None:
         self._write_termctrl(self._termnfo.hide_cursor)
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         self.hide_cursor()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+            self, exc_type: type[BaseException] | None,
+            exc_val: BaseException | None,
+            exc_tb: TracebackType | None) -> bool:
         self.show_cursor()
         return False

@@ -14,6 +14,7 @@ import sys
 import itertools
 from fnmatch import fnmatch
 import types
+from typing import Any, Iterable, Iterator, Sequence, TypeGuard, Union, cast
 
 from hunittest.utils import pyname_join
 from hunittest.utils import is_pkgdir
@@ -21,13 +22,13 @@ from hunittest.utils import drop_pyext
 from hunittest.utils import issubdir
 
 
-def list_packages_from(dirpath):
+def list_packages_from(dirpath: str) -> Iterator[str]:
     """Yields all packages directly available from *dirpath*."""
     for name in os.listdir(dirpath):
         if is_pkgdir(os.path.join(dirpath, name)):
             yield name
 
-def list_modules_from(dirpath, pattern):
+def list_modules_from(dirpath: str, pattern: str) -> Iterator[str]:
     """Yields all modules directly available form *dirpath.
 
     Useful to suggest module located at the root of top level directory the
@@ -37,35 +38,43 @@ def list_modules_from(dirpath, pattern):
         if os.path.isfile(name) and fnmatch(name, pattern):
             yield drop_pyext(name)
 
-def is_test_case(obj):
+def is_test_case(obj: object) -> TypeGuard[type[unittest.TestCase]]:
     return isinstance(obj, type) and issubclass(obj, unittest.TestCase)
 
-def collect_test_cases(module):
+def collect_test_cases(
+        module: types.ModuleType) -> filter[type[unittest.TestCase]]:
     return filter(is_test_case,
                   map(lambda x: getattr(module, x),
                       dir(module)))
 
-def is_test_method(name):
+def is_test_method(name: str) -> re.Match[str] | None:
     return re.match(r"^test_?", name)
 
-def collect_test_names(test_case):
+def collect_test_names(test_case: type[unittest.TestCase]) -> map[Any]:
     return map(functools.partial(getattr, test_case),
                filter(is_test_method, dir(test_case)))
 
-def build_test_name(test_module, test_case=None, test_method=None):
-    l = [test_module]
+def build_test_name(
+        test_module: object, test_case: object = None,
+        test_method: object = None) -> str:
+    l: list[object] = [test_module]
     if test_case is not None:
         l.append(test_case)
     if test_method is not None:
         l.append(test_method)
-    def transform(x):
-        if hasattr(x, "__name__"):
-            return x.__name__
-        else:
+    def transform(x: object) -> str:
+        if isinstance(x, str):
             return x
+        name = getattr(x, "__name__", None)
+        if isinstance(name, str):
+            return name
+        raise TypeError("expected a string or named object")
     return pyname_join(map(transform, l))
 
-def collect_all_test_modules(package, pattern, top_level_only=False):
+def collect_all_test_modules(
+        package: types.ModuleType, pattern: str,
+        top_level_only: bool = False
+        ) -> Iterator[Union[str, types.ModuleType, "SkippedTestSpec"]]:
     # We cannot use the finder to load the module because it mess up unittest.
     # Using import_module() is fine.
     for _, name, ispkg in pkgutil.walk_packages(package.__path__,
@@ -86,23 +95,26 @@ class TestSpecType(Enum):
     test_method = 4
     skipped = 5
 
-def is_pkg(obj):
-    return hasattr(obj, "__file__") \
-        and os.path.basename(obj.__file__) == "__init__.py"
+def is_pkg(obj: object) -> TypeGuard[types.ModuleType]:
+    if not isinstance(obj, types.ModuleType):
+        return False
+    filename = obj.__file__
+    return filename is not None \
+        and os.path.basename(filename) == "__init__.py"
 
 class InvalidTestSpecError(Exception):
 
-    def __init__(self, test_spec, message):
+    def __init__(self, test_spec: str, message: str) -> None:
         self.test_spec = test_spec
         self.message = message
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "invalid test spec '{}': {}".format(self.test_spec,
                                                    self.message)
 
 class SkippedTestSpec:
 
-    def __init__(self, test_spec, reason):
+    def __init__(self, test_spec: str, reason: str) -> None:
         """Create a new SkippedTestSpec object from the *test_spec* we were
         importing when we caught the SkipTest exception and the reason
         attached to the exception.
@@ -110,14 +122,16 @@ class SkippedTestSpec:
         self.test_spec = test_spec
         self.reason = reason
 
-def get_test_spec_type(test_spec, top_level_directory):
+def get_test_spec_type(
+        test_spec: str | Sequence[str],
+        top_level_directory: str) -> tuple[TestSpecType, Any]:
     _check_top_level_directory(top_level_directory)
     if not test_spec:
         raise ValueError("empty test spec")
     if isinstance(test_spec, str):
         spec = test_spec.split(".")
     elif isinstance(test_spec, (list, tuple)):
-        spec = test_spec
+        spec = list(test_spec)
         test_spec = pyname_join(spec)
     else:
         raise TypeError("must be a str, list or tuple, not {!r}"
@@ -125,6 +139,7 @@ def get_test_spec_type(test_spec, top_level_directory):
     assert len(spec) > 0
     mod = None
     first_import_err = None
+    i = 0
     for i in range(len(spec)-1, -1, -1):
         name_to_import = pyname_join(spec[:i+1])
         try:
@@ -145,7 +160,7 @@ def get_test_spec_type(test_spec, top_level_directory):
         # of the test spec.
         assert first_import_err is not None
         raise first_import_err
-    modpath = os.path.realpath(mod.__file__)
+    modpath = os.path.realpath(cast(str, mod.__file__))
     moddir = os.path.dirname(modpath)
     if moddir != top_level_directory \
        and not issubdir(moddir, top_level_directory):
@@ -189,18 +204,24 @@ def get_test_spec_type(test_spec, top_level_directory):
         else:
             return (TestSpecType.test_method, obj)
 
-def collect_all_from_test_case(test_case):
+def collect_all_from_test_case(
+        test_case: type[unittest.TestCase]) -> Iterator[str]:
     for test_method in collect_test_names(test_case):
         yield build_test_name(test_case.__module__, test_case, test_method)
 
-def collect_all_from_module(test_module, top_level_only=False):
+def collect_all_from_module(
+        test_module: types.ModuleType,
+        top_level_only: bool = False) -> Iterator[str]:
     if top_level_only:
         yield build_test_name(test_module)
     else:
         for test_case in collect_test_cases(test_module):
             yield from collect_all_from_test_case(test_case)
 
-def collect_all_from_package(package, pattern, top_level_only=False):
+def collect_all_from_package(
+        package: types.ModuleType, pattern: str,
+        top_level_only: bool = False
+        ) -> Iterator[Union[str, "SkippedTestSpec"]]:
     for test_module in collect_all_test_modules(package, pattern,
                                                 top_level_only=top_level_only):
         if isinstance(test_module, types.ModuleType):
@@ -209,7 +230,10 @@ def collect_all_from_package(package, pattern, top_level_only=False):
         else:
             yield test_module
 
-def collect_all(test_specs, pattern, top_level_directory, top_level_only=False):
+def collect_all(
+        test_specs: Iterable[str] | None, pattern: str,
+        top_level_directory: str, top_level_only: bool = False
+        ) -> Iterator[str | SkippedTestSpec]:
     """Collect all test case from the given test specification.
 
     The top_level_only flag tells whether to load only the top level test
@@ -220,7 +244,7 @@ def collect_all(test_specs, pattern, top_level_directory, top_level_only=False):
         test_specs = itertools.chain(list_packages_from(top_level_directory),
                                      list_modules_from(top_level_directory,
                                                        pattern))
-    def gen():
+    def gen() -> Iterator[str | SkippedTestSpec]:
         for test_spec in test_specs:
             tst, value = get_test_spec_type(test_spec, top_level_directory)
             if tst is TestSpecType.package:
@@ -244,27 +268,28 @@ def collect_all(test_specs, pattern, top_level_directory, top_level_only=False):
             else:
                 raise RuntimeError("unsupported test spec type: {}"
                                    .format(tst))
-    seen = set()
+    seen: set[str | SkippedTestSpec] = set()
     for i in gen():
         if i not in seen:
             seen.add(i)
             yield i
 
-def _check_top_level_directory(top_level_directory):
+def _check_top_level_directory(top_level_directory: str) -> None:
     if not os.path.isabs(top_level_directory):
         raise ValueError("top level directory must be an absolute path: '{}'"
                          .format(top_level_directory))
     if not os.path.isdir(top_level_directory):
         raise NotADirectoryError(top_level_directory)
 
-def setup_top_level_directory(top_level_directory=None):
+def setup_top_level_directory(
+        top_level_directory: str | None = None) -> str:
     if not top_level_directory:
         top_level_directory = os.getcwd()
     _check_top_level_directory(top_level_directory)
     sys.path.insert(0, top_level_directory)
     return top_level_directory
 
-def get_test_spec_last_pkg(test_spec):
+def get_test_spec_last_pkg(test_spec: str) -> str | None:
     last_pkg = None
     for part in test_spec.split("."):
         try:

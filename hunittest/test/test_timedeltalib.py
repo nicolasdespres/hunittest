@@ -16,7 +16,7 @@ from hunittest.timedeltalib import timedelta_to_unit
 
 class TestTimedeltaToHstr(unittest.TestCase):
 
-    def test_microseconds(self):
+    def test_microseconds(self) -> None:
         data = [
             ("0us",      timedelta(microseconds=0)),
             ("1us",      timedelta(microseconds=1)),
@@ -44,7 +44,7 @@ class TestTimedeltaToHstr(unittest.TestCase):
 
 class TestTimeUnit(unittest.TestCase):
 
-    UNIT_NAMES = [
+    UNIT_NAMES: list[tuple[str, TimeUnit]] = [
         ("microsecond", TimeUnit.microsecond),
         ("millisecond", TimeUnit.millisecond),
         ("second",      TimeUnit.second),
@@ -54,7 +54,7 @@ class TestTimeUnit(unittest.TestCase):
         ("week",        TimeUnit.week),
     ]
 
-    UNIT_ABBREVS = [
+    UNIT_ABBREVS: list[tuple[str, TimeUnit]] = [
         ("us", TimeUnit.microsecond),
         ("ms", TimeUnit.millisecond),
         ("s",  TimeUnit.second),
@@ -64,50 +64,50 @@ class TestTimeUnit(unittest.TestCase):
         ("w",  TimeUnit.week),
     ]
 
-    ALL_UNITS = list(map(operator.itemgetter(1), UNIT_NAMES))
+    ALL_UNITS: list[TimeUnit] = list(map(operator.itemgetter(1), UNIT_NAMES))
 
-    def test_sanity(self):
+    def test_sanity(self) -> None:
         self.assertEqual(len(TimeUnit), len(self.UNIT_NAMES))
         self.assertEqual(len(TimeUnit), len(self.UNIT_ABBREVS))
         self.assertEqual(len(TimeUnit), len(self.ALL_UNITS))
 
-    def test_name(self):
+    def test_name(self) -> None:
         for i, (a, q) in enumerate(self.UNIT_NAMES):
             self.assertEqual(a, q.name,
                              "wrong answer for {!r} for data {}".format(q, i))
 
-    def test_abbrev(self):
+    def test_abbrev(self) -> None:
         for i, (a, q) in enumerate(self.UNIT_ABBREVS):
             self.assertEqual(a, q.abbrev,
                              "wrong answer for {!r} for data {}".format(q, i))
 
-    def test_from_name(self):
+    def test_from_name(self) -> None:
         for i, (q, a) in enumerate(self.UNIT_NAMES):
             self.assertEqual(a, TimeUnit.from_name(q),
                              "wrong answer for {!r} for data {}".format(q, i))
 
-    def test_from_abbrev(self):
+    def test_from_abbrev(self) -> None:
         for i, (q, a) in enumerate(self.UNIT_ABBREVS):
             self.assertEqual(a, TimeUnit.from_abbrev(q),
                              "wrong answer for {!r} for data {}".format(q, i))
 
-    def test_from_string(self):
+    def test_from_string(self) -> None:
         for i, (q, a) in enumerate(itertools.chain(self.UNIT_NAMES,
                                                    self.UNIT_ABBREVS)):
             self.assertIs(a, TimeUnit.from_string(q),
                           "wrong answer for {!r} for data {}".format(q, i))
 
-    def test_as_timeunit(self):
+    def test_as_timeunit(self) -> None:
         identity = zip(self.ALL_UNITS, self.ALL_UNITS)
         iterator = itertools.chain(self.UNIT_NAMES,
                                    self.UNIT_ABBREVS,
                                    identity)
-        for i, (q, a) in enumerate(iterator):
+        for _, (_, a) in enumerate(iterator):
             self.assertIs(a, as_timeunit(a))
 
-    def test_timedelta_to_unit(self):
+    def test_timedelta_to_unit(self) -> None:
         data = [
             (1000.0, timedelta(seconds=1), "ms"),
         ]
-        for i, (a, q, u) in enumerate(data):
+        for a, q, u in data:
             self.assertEqual(a, timedelta_to_unit(q, u))

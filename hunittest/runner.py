@@ -4,35 +4,46 @@
 
 import unittest
 import multiprocessing as mp
-import time
 import sys
 import traceback
-from collections import namedtuple
+from multiprocessing.connection import Connection, wait
+from typing import Any, NamedTuple, Sequence, cast
 
 from hunittest.unittestresultlib import HTestResultClient
+from hunittest.unittestresultlib import HTestResult
+from hunittest.unittestresultlib import HTestResultServer
 from hunittest.unittestresultlib import TestResultMsg
 from hunittest.coveragelib import CoverageInstrument
 
-class _ErrMsg(namedtuple("ErrMsg", ("type", "value", "msg"))):
+class _ErrMsg(NamedTuple):
     """Message representing an uncaught exception raised in the worker process.
     """
 
-    def print_exception(self, prefix):
+    type: type[BaseException]
+    value: BaseException
+    msg: list[str]
+
+    def print_exception(self, prefix: str) -> None:
         for item in self.msg:
             for line in item.splitlines():
                 print(prefix, line)
 
-_testLoader = unittest.loader.defaultTestLoader
+_testLoader: unittest.TestLoader = unittest.loader.defaultTestLoader
 
-def _worker_run_aux(test_name, result):
+def _worker_run_aux(test_name: str, result: HTestResultClient) -> None:
     test = _testLoader.loadTestsFromNames([test_name])
-    test(result)
+    test(cast(unittest.TestResult, result))
 
-def _worker_run(conn, worker_id, worker_kwargs, cov_args):
+def _worker_run(
+        conn: Connection, worker_id: int,
+        worker_kwargs: dict[str, Any] | None,
+        cov_args: dict[str, Any] | None) -> None:
     """Executed in the worker process.
     """
     if cov_args is None:
         cov_args = {}
+    if worker_kwargs is None:
+        worker_kwargs = {}
     cov = CoverageInstrument(**cov_args)
     with conn, cov:
         result = HTestResultClient(worker_id, conn, **worker_kwargs)
@@ -59,8 +70,10 @@ def _worker_run(conn, worker_id, worker_kwargs, cov_args):
                     raise RuntimeError("worker {} received unexpected message: "
                                        "{!r}".format(worker_id, msg))
 
-def run_concurrent_tests(test_names, result, njobs=0, cov_args=None,
-                         worker_kwargs=None):
+def run_concurrent_tests(
+        test_names: Sequence[str], result: HTestResultServer, njobs: int = 0,
+        cov_args: dict[str, Any] | None = None,
+        worker_kwargs: dict[str, Any] | None = None) -> None:
     """Run multiple tests concurrently using multiple process.
 
     This function is executed in the master process. It distribute tests to
@@ -73,11 +86,11 @@ def run_concurrent_tests(test_names, result, njobs=0, cov_args=None,
     if njobs <= 0:
         njobs = mp.cpu_count()
 
-    def start_test(conn, test_name):
+    def start_test(conn: Connection, test_name: str) -> None:
         conn.send(test_name)
         result.startTest(test_name)
 
-    def stop_worker(conn):
+    def stop_worker(conn: Connection) -> None:
         """Tell the worker connected to the given *conn* pipe to stop."""
         conn.send(None)
 
@@ -86,8 +99,8 @@ def run_concurrent_tests(test_names, result, njobs=0, cov_args=None,
         return
     nproc = min(ntest, njobs)
     ### Create workers
-    conns = []
-    workers = []
+    conns: list[Connection] = []
+    workers: list[mp.Process] = []
     for i in range(nproc):
         my_conn, worker_conn = mp.Pipe()
         proc = mp.Process(target=_worker_run,
@@ -108,7 +121,8 @@ def run_concurrent_tests(test_names, result, njobs=0, cov_args=None,
             start_test(conns[t], test_names[t])
             t += 1
         while conns:
-            for conn in mp.connection.wait(conns):
+            for ready_conn in wait(conns):
+                conn = cast(Connection, ready_conn)
                 try:
                     msg = conn.recv()
                 except EOFError:
@@ -118,7 +132,7 @@ def run_concurrent_tests(test_names, result, njobs=0, cov_args=None,
                     conns.remove(conn)
                 else:
                     # Print results and send new test.
-                    worker_id, obj = msg
+                    worker_id, obj = cast(tuple[int, object], msg)
                     if isinstance(obj, _ErrMsg):
                         obj.print_exception("[worker{}]".format(worker_id))
                     elif isinstance(obj, TestResultMsg):
@@ -143,11 +157,13 @@ def run_concurrent_tests(test_names, result, njobs=0, cov_args=None,
         for p in workers:
             p.join()
 
-def run_monoproc_tests(test_names, result, cov):
+def run_monoproc_tests(
+        test_names: Sequence[str], result: HTestResult,
+        cov: CoverageInstrument) -> None:
     with cov:
         for test_name in test_names:
             # If a test has failed and -f/--failfast is set we must exit now.
             if result.shouldStop:
                 break
             test = _testLoader.loadTestsFromNames([test_name])
-            test(result)
+            test(cast(unittest.TestResult, result))

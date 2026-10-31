@@ -6,14 +6,13 @@
 import sys
 import argparse
 import os
-import operator
-import time
 from textwrap import dedent
 import subprocess
-import re
 import shutil
 import hashlib
 import multiprocessing
+from importlib import import_module
+from typing import Any, NoReturn, Sequence
 
 from hunittest.line_printer import LinePrinter
 from hunittest.unittestresultlib import HTestResult
@@ -38,18 +37,18 @@ from hunittest.coveragelib import COVERAGE_ENABLED
 from hunittest.coveragelib import add_coverage_cmdline_arguments
 from hunittest.coveragelib import CoverageInstrument
 
+_argcomplete: Any = None
 try:
-    import argcomplete
+    _argcomplete = import_module("argcomplete")
 except ImportError:
     sys.stderr.write("info: you can get shell completion by installing "
                      "'argcomplete'\n")
-    ARGCOMPLETE_ENABLED = False
-else:
-    ARGCOMPLETE_ENABLED = True
+ARGCOMPLETE_ENABLED: bool = _argcomplete is not None
 
-def reported_collect(printer, test_specs, pattern, filter_rules,
-                     top_level_directory, progress=True,
-                     top_level_only=False):
+def reported_collect(
+        printer: LinePrinter, test_specs: Sequence[str], pattern: str,
+        filter_rules: Any, top_level_directory: str, progress: bool = True,
+        top_level_only: bool = False) -> list[str]:
     if top_level_only:
         previous_errors = None
         test_kind_msg = "top-level "
@@ -61,7 +60,7 @@ def reported_collect(printer, test_specs, pattern, filter_rules,
     printer.overwrite("Loading {}test spec(s)...".format(test_kind_msg))
     collection = collect_all(test_specs, pattern, top_level_directory,
                              top_level_only=top_level_only)
-    test_names = []
+    test_names: list[str] = []
     n = 0
     for test_name in filter_rules(collection):
         if isinstance(test_name, SkippedTestSpec):
@@ -89,24 +88,24 @@ def reported_collect(printer, test_specs, pattern, filter_rules,
                                                             test_kind_msg))
     return test_names
 
-def complete_arg(arg, completer):
+def complete_arg(arg: argparse.Action, completer: Any) -> argparse.Action:
     if ARGCOMPLETE_ENABLED:
-        arg.completer = completer
+        setattr(arg, "completer", completer)
     return arg
 
-DEFAULT_WORKDIR = ".hunittest"
-DEFAULT_PAGER = "less"
+DEFAULT_WORKDIR: str = ".hunittest"
+DEFAULT_PAGER: str = "less"
 
-def get_workdir():
+def get_workdir() -> str:
     return os.environ.get(envar.WORKDIR, DEFAULT_WORKDIR)
 
-def get_log_filename():
+def get_log_filename() -> str:
     return os.path.join(get_workdir(), "log")
 
-def get_error_filename():
+def get_error_filename() -> str:
     return os.path.join(get_workdir(), "error")
 
-def get_status_filename(options):
+def get_status_filename(options: argparse.Namespace) -> str:
     """Build status filename based on the options."""
     m = hashlib.md5()
     m.update(" ".join(options.test_specs).encode())
@@ -115,7 +114,7 @@ def get_status_filename(options):
     m.update(options.pattern.encode())
     return os.path.join(get_workdir(), "status", m.hexdigest(), "status.json")
 
-EPILOGUE = \
+EPILOGUE: str = \
 """
 Exit code:
  0 - test suite was successful
@@ -138,7 +137,7 @@ All rights reserved.
     envar_summary=envar.SUMMARY,
 )
 
-def git_describe(cwd="."):
+def git_describe(cwd: str = ".") -> str:
     """Return the description of this repository.
 
     This function use git-describe(1) because the features is not available
@@ -149,19 +148,23 @@ def git_describe(cwd="."):
     description = subprocess.check_output(cmd, cwd=cwd)
     return description.decode().strip()
 
-def get_version():
+def get_version() -> str:
     return git_describe(cwd=os.path.dirname(os.path.realpath(__file__)))
 
 class PagerMode(AutoEnum):
     auto = ()
     never = ()
 
-def spawn_pager(filename):
+def spawn_pager(filename: str) -> NoReturn:
     pager = os.environ.get("PAGER", DEFAULT_PAGER)
     executable = shutil.which(pager)
+    if executable is None:
+        raise FileNotFoundError("pager executable not found: {}".format(pager))
     os.execvp(executable, [pager, filename])
 
-def maybe_spawn_pager(options, log_filename, isatty=True):
+def maybe_spawn_pager(
+        options: argparse.Namespace, log_filename: str,
+        isatty: bool = True) -> None:
     if options.quiet:
         return
     if options.pager is PagerMode.auto:
@@ -174,13 +177,14 @@ def maybe_spawn_pager(options, log_filename, isatty=True):
     else:
         raise ValueError("invalid pager option: {}".format(options.pager))
 
-def is_pdb_on(options):
+def is_pdb_on(options: argparse.Namespace) -> bool:
     return not options.quiet and options.njobs == 1 and options.pdb
 
-def is_coverage_on(options):
+def is_coverage_on(options: argparse.Namespace) -> bool:
     return COVERAGE_ENABLED and options.coverage
 
-def write_error_test_specs(result):
+def write_error_test_specs(
+        result: HTestResult | HTestResultServer) -> None:
     filename = get_error_filename()
     # We load the previous erroneous test specs, we add the new one
     # and remove the one that succeeded.
@@ -193,13 +197,13 @@ def write_error_test_specs(result):
             stream.write(test_spec)
             stream.write("\n")
 
-def load_error_test_specs():
+def load_error_test_specs() -> set[str]:
     filename = get_error_filename()
     return load_error_test_specs_from(filename)
 
-def load_error_test_specs_from(filename):
+def load_error_test_specs_from(filename: str) -> set[str]:
     try:
-        s = set()
+        s: set[str] = set()
         with open(filename) as stream:
             for line in stream:
                 s.add(line.strip())
@@ -207,7 +211,7 @@ def load_error_test_specs_from(filename):
     except FileNotFoundError:
         return set()
 
-def get_default_spawn_method():
+def get_default_spawn_method() -> str:
     if sys.platform == "win32":
         return "spawn"
     else:
@@ -217,7 +221,7 @@ def get_default_spawn_method():
         # descriptors or threads at import time. In such case, they have --spawn-method.
         return "fork"
 
-def build_cli():
+def build_cli() -> argparse.ArgumentParser:
     class RawDescriptionWithArgumentDefaultsHelpFormatter(
             argparse.ArgumentDefaultsHelpFormatter,
             argparse.RawDescriptionHelpFormatter,
@@ -225,7 +229,9 @@ def build_cli():
         """Mix both formatter."""
     # TODO(Nicolas Despres): Generalize this for any enum class.
     class PagerModeAction(argparse.Action):
-        def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        def __init__(
+                self, option_strings: Sequence[str], dest: str,
+                nargs: int | str | None = None, **kwargs: Any) -> None:
             if nargs is not None:
                 raise ValueError("'nargs' is not allowed.")
             if "choices" in kwargs:
@@ -233,13 +239,16 @@ def build_cli():
             kwargs["choices"] = [pm.name for pm in PagerMode]
             super(PagerModeAction, self).__init__(option_strings, dest,
                                                   **kwargs)
-        def __call__(self, parser, namespace, values, option_string=None):
+        def __call__(
+                self, parser: argparse.ArgumentParser,
+                namespace: argparse.Namespace, values: Any,
+                option_string: str | None = None) -> None:
             assert isinstance(values, str)
             # Cannot raise AttributeError because we set 'choices' in the
             # first place.
             v = getattr(PagerMode, values)
             setattr(namespace, self.dest, v)
-    def top_level_directory_param(param_str):
+    def top_level_directory_param(param_str: str) -> str:
         top_level_directory = param_str
         for preproc in (os.path.expanduser,
                         os.path.expandvars,
@@ -385,18 +394,18 @@ def build_cli():
     complete_arg(arg, test_spec_completer)
     return parser
 
-def main(argv):
+def main(argv: Sequence[str]) -> int:
     cli = build_cli()
     if ARGCOMPLETE_ENABLED:
         # It is tempting to set a validator that always return True so that
         # we could return the list of sub-modules without their full path
         # but unfortunately it does not work.
-        argcomplete.autocomplete(cli)
+        _argcomplete.autocomplete(cli)
     options = cli.parse_args(argv[1:])
     rc = _do_main(options)
     return 0 if options.no_returncode else rc
 
-def _do_main(options):
+def _do_main(options: argparse.Namespace) -> int:
     if options.version:
         print(get_version())
         return 0
@@ -437,11 +446,14 @@ def _do_main(options):
                 top_level_only=True)
         else:
             top_level_test_specs = options.test_specs
-        cov_args = dict(top_level_dir=top_level_directory,
-                        reporters=options.coverage,
-                        top_level_test_specs=top_level_test_specs)
+        cov_args: dict[str, Any] = dict(
+            top_level_dir=top_level_directory,
+            reporters=options.coverage,
+            top_level_test_specs=top_level_test_specs,
+        )
         cov = CoverageInstrument(**cov_args)
         cov.erase()
+        test_names: list[str] = []
         try:
             with cov:
                 test_names = reported_collect(printer, options.test_specs,
@@ -451,7 +463,7 @@ def _do_main(options):
             if options.collect_only or len(test_names) == 0:
                 printer.new_line()
                 return 0
-            result_options = dict(
+            result_options: dict[str, Any] = dict(
                 result_printer=result_printer,
                 total_tests=len(test_names),
                 failfast=failfast,
@@ -508,7 +520,7 @@ def _do_main(options):
             # spawned. Otherwise we return 1.
         return 1
 
-def sys_main():
+def sys_main() -> None:
     rc = main(sys.argv)
     if rc != 0:
         sys.exit(rc)

@@ -5,24 +5,28 @@
 import os
 import re
 import tempfile
-import sys
 import textwrap
+from importlib import import_module
 from glob import glob
 from warnings import warn
 import argparse
+from types import TracebackType
+from typing import Any, Iterable, Self
 
 from hunittest.collectlib import get_test_spec_last_pkg
 from hunittest.utils import silent_stderr
 
+_coverage: Any = None
 try:
-    import coverage
+    _coverage = import_module("coverage")
 except ImportError:
-    COVERAGE_ENABLED = False
-else:
-    COVERAGE_ENABLED = True
+    pass
 
-def get_user_test_files(test_names, top_level_dir):
-    s = set()
+COVERAGE_ENABLED: bool = _coverage is not None
+
+def get_user_test_files(
+        test_names: Iterable[str], top_level_dir: str) -> set[str]:
+    s: set[str] = set()
     for test_spec in test_names:
         pkgname = get_test_spec_last_pkg(test_spec)
         if pkgname is None:
@@ -37,11 +41,12 @@ def get_user_test_files(test_names, top_level_dir):
             s.add(path)
     return s
 
-def get_my_test_files():
+def get_my_test_files() -> list[str]:
     # My own files
     return [os.path.join(os.path.dirname(__file__), "*")]
 
-def get_test_files_to_omit(test_names, top_level_dir):
+def get_test_files_to_omit(
+        test_names: Iterable[str] | None, top_level_dir: str) -> list[str]:
     l = get_my_test_files()
     l.append(os.path.join(tempfile.gettempdir(), "*"))
     l.append("/tmp/*")
@@ -49,7 +54,7 @@ def get_test_files_to_omit(test_names, top_level_dir):
         l.extend(get_user_test_files(test_names, top_level_dir))
     return l
 
-def write_sitecustomize(path):
+def write_sitecustomize(path: str) -> None:
     with open(path, "w") as stream:
         stream.write(textwrap.dedent("""\
         import coverage
@@ -80,11 +85,15 @@ class CoverageInstrument(object):
     """
 
     def __init__(self,
-                 top_level_dir=os.getcwd(),
-                 config_file='.coveragerc',
-                 reporters=None,
-                 top_level_test_specs=None):
-        self.cov = None
+                 top_level_dir: str = os.getcwd(),
+                 config_file: str = '.coveragerc',
+                 reporters: set[str] | None = None,
+                 top_level_test_specs: list[str] | None = None) -> None:
+        self.cov: Any = None
+        self.config_file = config_file
+        self.reporters: set[str] = (
+            reporters if reporters is not None else set()
+        )
         if not COVERAGE_ENABLED or reporters is None:
             return
         self.top_level_dir = top_level_dir
@@ -94,17 +103,17 @@ class CoverageInstrument(object):
         self.top_level_test_specs = top_level_test_specs
         self.omit = get_test_files_to_omit(self.top_level_test_specs,
                                            self.top_level_dir)
-        self.cov = coverage.Coverage(config_file=self.config_file,
-                                     omit=self.omit)
+        self.cov = _coverage.Coverage(config_file=self.config_file,
+                                      omit=self.omit)
         assert self.cov.get_option("run:parallel") == True, \
             "The run:parallel option must be set to True in your coverage "\
             "configuration file regardless you are "\
             "running your test in parallel or not"
-        self.test_names = None
+        self.test_names: list[str] | None = None
         self.write_sitecustomize()
         self.reporters = reporters
 
-    def __del__(self):
+    def __del__(self) -> None:
         if self.cov is None:
             return
         try:
@@ -112,29 +121,29 @@ class CoverageInstrument(object):
         except FileNotFoundError:
             pass
 
-    def write_sitecustomize(self):
+    def write_sitecustomize(self) -> None:
         if not os.path.exists(self.SITECUSTOMIZE):
             write_sitecustomize(self.SITECUSTOMIZE)
 
-    def set_env(self):
+    def set_env(self) -> None:
         os.environ["COVERAGE_PROCESS_START"] = self.config_file
 
-    def unset_env(self):
+    def unset_env(self) -> None:
         del os.environ["COVERAGE_PROCESS_START"]
 
-    def erase(self):
+    def erase(self) -> None:
         if self.cov is None:
             return
         self.cov.erase()
 
-    def start(self):
+    def start(self) -> None:
         if self.cov is None:
             return
         self.set_env()
         self.write_sitecustomize()
         self.cov.start()
 
-    def stop(self):
+    def stop(self) -> None:
         if self.cov is None:
             return
         self.cov.stop()
@@ -145,7 +154,7 @@ class CoverageInstrument(object):
         with silent_stderr():
             self.cov.save()
 
-    def _drop_combined_data_suffix(self):
+    def _drop_combined_data_suffix(self) -> None:
         """Get rid of the combined data file suffix.
 
         In parallel mode, coverage always add a suffix to the saved file.
@@ -154,7 +163,8 @@ class CoverageInstrument(object):
         needs a combined data file named .coverage to successfully make its
         report. This function do the file renaming.
         """
-        filename = self.cov.data_files.filename
+        assert self.cov is not None
+        filename: str = self.cov.data_files.filename
         pattern = filename+".*"
         filenames = glob(pattern)
         nfilenames = len(filenames)
@@ -166,15 +176,15 @@ class CoverageInstrument(object):
                                                       pattern,
                                                       os.getcwd()))
 
-    def combine(self):
+    def combine(self) -> None:
         if self.cov is None:
             return
         self.cov.combine()
         self.cov.save()
         self._drop_combined_data_suffix()
-        self.combined = True
+        self.combined: bool = True
 
-    def report(self):
+    def report(self) -> None:
         if self.cov is None:
             return
         if "term" in self.reporters:
@@ -188,23 +198,26 @@ class CoverageInstrument(object):
         if "xml" in self.reporters:
             self.cov.xml_report()
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         self.start()
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(
+            self, exc_type: type[BaseException] | None,
+            exc_value: BaseException | None,
+            traceback: TracebackType | None) -> bool:
         self.stop()
         return False # Tell to re-raise the exception if there was one.
 
-def add_coverage_cmdline_arguments(parser):
+def add_coverage_cmdline_arguments(parser: argparse.ArgumentParser) -> None:
     DEFAULT_REPORTER = "term"
-    VALID_REPORTERS = set((DEFAULT_REPORTER, "term-missing",
-                           "annotate", "html", "xml"))
+    VALID_REPORTERS: set[str] = set((DEFAULT_REPORTER, "term-missing",
+                                     "annotate", "html", "xml"))
     if COVERAGE_ENABLED:
         help_msg = "Comma separated list of report types to generate "\
                    "(any combination of: {})"\
                    .format(", ".join(VALID_REPORTERS))
-        def coverage_param(param_str):
+        def coverage_param(param_str: str) -> set[str]:
             reporters = set(param_str.split(","))
             invalid_reporters = reporters - VALID_REPORTERS
             if invalid_reporters:
@@ -214,7 +227,7 @@ def add_coverage_cmdline_arguments(parser):
             return reporters
     else:
         help_msg = "install 'coverage' package to enable this option"
-        def coverage_param(param_str):
+        def coverage_param(param_str: str) -> set[str]:
             raise argparse.ArgumentTypeError("'coverage' package is not "
                                              "installed")
     parser.add_argument(

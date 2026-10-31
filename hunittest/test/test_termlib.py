@@ -11,23 +11,23 @@ from hunittest.termlib import TermInfo
 
 class TestTruncateAnsiString(unittest.TestCase):
 
-    def setUp(self):
+    def setUp(self) -> None:
         super(TestTruncateAnsiString, self).setUp()
-        self.termnfo = TermInfo(color_mode="always")
+        self.termnfo: TermInfo = TermInfo(color_mode="always")
 
-    def test_negative(self):
+    def test_negative(self) -> None:
         with self.assertRaises(ValueError):
             ansi_string_truncinfo("", -1)
         with self.assertRaises(ValueError):
             truncate_ansi_string("", -1)
 
-    def test_none_string(self):
+    def test_none_string(self) -> None:
         with self.assertRaises(ValueError):
             ansi_string_truncinfo(None, 1)
         with self.assertRaises(ValueError):
             truncate_ansi_string(None, 1)
 
-    def test_empty_string(self):
+    def test_empty_string(self) -> None:
         self.assertEqual((0, 0, False), ansi_string_truncinfo("", 0))
         self.assertEqual((0, 0, False), ansi_string_truncinfo("", 1))
         self.assertEqual((0, 0, False), ansi_string_truncinfo("", 100))
@@ -35,7 +35,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual("", truncate_ansi_string("", 1))
         self.assertEqual("", truncate_ansi_string("", 100))
 
-    def test_size_0_no_ansi(self):
+    def test_size_0_no_ansi(self) -> None:
         q = "foobarblue"
         a = ""
         s = 0
@@ -43,7 +43,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((s, s, False),
                          ansi_string_truncinfo(q, s))
 
-    def test_size_1_no_ansi(self):
+    def test_size_1_no_ansi(self) -> None:
         q = "foobarblue"
         s = 1
         a = "f"
@@ -51,7 +51,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((s, s, False),
                          ansi_string_truncinfo(q, s))
 
-    def test_size_3_no_ansi(self):
+    def test_size_3_no_ansi(self) -> None:
         q = "foobarblue"
         a = "foo"
         s = 3
@@ -59,14 +59,14 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((s, s, False),
                          ansi_string_truncinfo(q, s))
 
-    def test_size_exceed_no_ansi(self):
+    def test_size_exceed_no_ansi(self) -> None:
         text = "foobarblue"
         s = 10000
         self.assertEqual(text, truncate_ansi_string(text, s))
         self.assertEqual((len(text), len(text), False),
                          ansi_string_truncinfo(text, s))
 
-    def test_size_0_ansi_first(self):
+    def test_size_0_ansi_first(self) -> None:
         fixture = self.termnfo.fore_red+"text"
         size = 0
         expected = ""
@@ -75,7 +75,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((0, 0, False),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_1_ansi_first(self):
+    def test_size_1_ansi_first(self) -> None:
         fixture = self.termnfo.fore_red+"text"
         size = 1
         expected = self.termnfo.fore_red+"t"
@@ -84,7 +84,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), 1, True),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_2_ansi_first(self):
+    def test_size_2_ansi_first(self) -> None:
         fixture = self.termnfo.fore_red+"text"
         size = 2
         expected = self.termnfo.fore_red+"te"
@@ -93,7 +93,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_3_ansi_first(self):
+    def test_size_3_ansi_first(self) -> None:
         fixture = self.termnfo.fore_red+"text"
         size = 3
         expected = self.termnfo.fore_red+"tex"
@@ -102,13 +102,13 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_exceed_ansi_first(self):
+    def test_size_exceed_ansi_first(self) -> None:
         fixture = self.termnfo.fore_red+"text"
         expected = self.termnfo.fore_red+"text"
         actual = truncate_ansi_string(fixture, 4000)
         self.assertEqual(expected, actual)
 
-    def test_size_0_ansi_middle(self):
+    def test_size_0_ansi_middle(self) -> None:
         fixture = "123"+self.termnfo.fore_red+"red"
         size = 0
         expected = ""
@@ -117,7 +117,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, False),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_1_ansi_middle(self):
+    def test_size_1_ansi_middle(self) -> None:
         fixture = "123"+self.termnfo.fore_red+"red"
         size = 1
         expected = "1"
@@ -126,7 +126,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, False),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_2_ansi_middle(self):
+    def test_size_2_ansi_middle(self) -> None:
         fixture = "123"+self.termnfo.fore_red+"red"
         size = 2
         expected = "12"
@@ -135,7 +135,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, False),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_3_ansi_middle(self):
+    def test_size_3_ansi_middle(self) -> None:
         fixture = "123"+self.termnfo.fore_red+"red"
         size = 3
         expected = "123"
@@ -144,7 +144,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, False),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_4_ansi_middle(self):
+    def test_size_4_ansi_middle(self) -> None:
         fixture = "123"+self.termnfo.fore_red+"456"
         size = 4
         expected = "123"+self.termnfo.fore_red+"4"
@@ -153,7 +153,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_5_ansi_middle(self):
+    def test_size_5_ansi_middle(self) -> None:
         fixture = "123"+self.termnfo.fore_red+"456"
         size = 5
         expected = "123"+self.termnfo.fore_red+"45"
@@ -162,7 +162,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_6_ansi_middle(self):
+    def test_size_6_ansi_middle(self) -> None:
         fixture = "123"+self.termnfo.fore_red+"456"
         size = 6
         expected = "123"+self.termnfo.fore_red+"456"
@@ -171,7 +171,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_exceed_ansi_middle(self):
+    def test_size_exceed_ansi_middle(self) -> None:
         fixture = "123"+self.termnfo.fore_red+"456"
         size = 10000
         expected = "123"+self.termnfo.fore_red+"456"
@@ -180,7 +180,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), 6, True),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_0_ansi_first_middle(self):
+    def test_size_0_ansi_first_middle(self) -> None:
         fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"red"
         size = 0
         expected = ""
@@ -189,7 +189,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, False),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_1_ansi_first_middle(self):
+    def test_size_1_ansi_first_middle(self) -> None:
         fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"red"
         size = 1
         expected = self.termnfo.fore_blue+"1"
@@ -198,7 +198,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_2_ansi_first_middle(self):
+    def test_size_2_ansi_first_middle(self) -> None:
         fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"red"
         size = 2
         expected = self.termnfo.fore_blue+"12"
@@ -207,7 +207,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_3_ansi_first_middle(self):
+    def test_size_3_ansi_first_middle(self) -> None:
         fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"red"
         size = 3
         expected = self.termnfo.fore_blue+"123"
@@ -216,7 +216,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_4_ansi_first_middle(self):
+    def test_size_4_ansi_first_middle(self) -> None:
         fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"
         size = 4
         expected = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"4"
@@ -225,7 +225,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_5_ansi_first_middle(self):
+    def test_size_5_ansi_first_middle(self) -> None:
         fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"
         size = 5
         expected = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"45"
@@ -234,7 +234,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_6_ansi_first_middle(self):
+    def test_size_6_ansi_first_middle(self) -> None:
         fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"
         size = 6
         expected = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"
@@ -243,7 +243,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_exceed_ansi_first_middle(self):
+    def test_size_exceed_ansi_first_middle(self) -> None:
         fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"
         size = 1000
         expected = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"
@@ -252,7 +252,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), 6, True),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_0_ansi_first_middle_last(self):
+    def test_size_0_ansi_first_middle_last(self) -> None:
         fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"red"+self.termnfo.fore_green
         size = 0
         expected = ""
@@ -261,7 +261,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, False),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_1_ansi_first_middle_last(self):
+    def test_size_1_ansi_first_middle_last(self) -> None:
         fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"red"+self.termnfo.fore_green
         size = 1
         expected = self.termnfo.fore_blue+"1"
@@ -270,7 +270,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_2_ansi_first_middle_last(self):
+    def test_size_2_ansi_first_middle_last(self) -> None:
         fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"red"+self.termnfo.fore_green
         size = 2
         expected = self.termnfo.fore_blue+"12"
@@ -279,7 +279,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_3_ansi_first_middle_last(self):
+    def test_size_3_ansi_first_middle_last(self) -> None:
         fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"red"+self.termnfo.fore_green
         size = 3
         expected = self.termnfo.fore_blue+"123"
@@ -288,7 +288,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_4_ansi_first_middle_last(self):
+    def test_size_4_ansi_first_middle_last(self) -> None:
         fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"+self.termnfo.fore_green
         size = 4
         expected = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"4"
@@ -297,7 +297,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_5_ansi_first_middle_last(self):
+    def test_size_5_ansi_first_middle_last(self) -> None:
         fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"+self.termnfo.fore_green
         size = 5
         expected = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"45"
@@ -306,7 +306,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_6_ansi_first_middle_last(self):
+    def test_size_6_ansi_first_middle_last(self) -> None:
         fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"+self.termnfo.fore_green
         size = 6
         expected = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"
@@ -315,7 +315,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), size, True),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_7_ansi_first_middle_last(self):
+    def test_size_7_ansi_first_middle_last(self) -> None:
         fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"+self.termnfo.fore_green
         size = 7
         expected = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"+self.termnfo.fore_green
@@ -324,7 +324,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), 6, True),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_size_exceed_ansi_first_middle_last(self):
+    def test_size_exceed_ansi_first_middle_last(self) -> None:
         fixture = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"+self.termnfo.fore_green
         size = 1000
         expected = self.termnfo.fore_blue+"123"+self.termnfo.fore_red+"456"+self.termnfo.fore_green
@@ -333,7 +333,7 @@ class TestTruncateAnsiString(unittest.TestCase):
         self.assertEqual((len(expected), 6, True),
                          ansi_string_truncinfo(fixture, size))
 
-    def test_use_case(self):
+    def test_use_case(self) -> None:
         fixture = "[ 50%|253.71|"+self.termnfo.fore_green+"2"+self.termnfo.reset_all+"|"+self.termnfo.fore_red+"0"+self.termnfo.reset_all+"|"+self.termnfo.fore_magenta+"0"+self.termnfo.reset_all+"|"+self.termnfo.fore_blue+"0"+self.termnfo.reset_all+"|"+self.termnfo.fore_yellow+"0"+self.termnfo.reset_all+"|"+self.termnfo.fore_cyan+"0"+self.termnfo.reset_all+"]"+self.termnfo.fore_green+" SUCCESS "+self.termnfo.reset_all+": testtest.test_allgood.Case1.test_success2 (0:00:00.252080)"
         size = 50
         expected = "[ 50%|253.71|"+self.termnfo.fore_green+"2"+self.termnfo.reset_all+"|"+self.termnfo.fore_red+"0"+self.termnfo.reset_all+"|"+self.termnfo.fore_magenta+"0"+self.termnfo.reset_all+"|"+self.termnfo.fore_blue+"0"+self.termnfo.reset_all+"|"+self.termnfo.fore_yellow+"0"+self.termnfo.reset_all+"|"+self.termnfo.fore_cyan+"0"+self.termnfo.reset_all+"]"+self.termnfo.fore_green+" SUCCESS "+self.termnfo.reset_all+": testtest.test_"

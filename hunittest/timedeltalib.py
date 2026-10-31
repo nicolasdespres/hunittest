@@ -6,20 +6,21 @@
 from datetime import timedelta
 import enum
 
-def has_decimal(v):
+def has_decimal(v: float) -> bool:
     return (v - int(v)) != 0.0
 
-def strip_decimal(v):
+def strip_decimal(v: float) -> float | int:
     if has_decimal(v):
         return v
     else:
         return int(v)
 
-def significant_units(max_unit, precision=3):
+def significant_units(
+        max_unit: "TimeUnit", precision: int = 3) -> list["TimeUnit"]:
     assert precision > 0
     found = False
-    sign_units = []
-    for i, u in enumerate(reversed(TimeUnit)):
+    sign_units: list[TimeUnit] = []
+    for u in reversed(TimeUnit):
         if u is max_unit:
             found = True
         if found:
@@ -28,7 +29,7 @@ def significant_units(max_unit, precision=3):
                 break
     return sign_units
 
-def timedelta_to_hstr(tdelta, precision=3):
+def timedelta_to_hstr(tdelta: timedelta, precision: int = 3) -> str:
     """A prettier string version of a timedelta.
 
     Print units for each part (weeks, days, hours, etc...) and skip them
@@ -38,8 +39,8 @@ def timedelta_to_hstr(tdelta, precision=3):
     the greatest one. For instance a result of '1m 2s 3ms 4us' will be printed
     like '1m 2s' with a precision of 2. None means all precision.
     """
-    parts = []
-    units = []
+    parts: list[str] = []
+    units: list[TimeUnit] = []
     r = tdelta
     for u in reversed(TimeUnit):
         q, r = divmod(r, u.value)
@@ -50,7 +51,7 @@ def timedelta_to_hstr(tdelta, precision=3):
         assert len(units) == len(parts)
         # Select only significant parts
         sign_units = significant_units(units[0], precision)
-        sign_parts = []
+        sign_parts: list[str] = []
         for i in range(len(parts)):
             if units[i] in sign_units:
                 sign_parts.append(parts[i])
@@ -69,7 +70,7 @@ class TimeUnit(enum.Enum):
     week = timedelta(weeks=1)
 
     @property
-    def abbrev(self):
+    def abbrev(self) -> str:
         if self is TimeUnit.microsecond:
             return "us"
         elif self is TimeUnit.millisecond:
@@ -78,24 +79,24 @@ class TimeUnit(enum.Enum):
             return self.name[0]
 
     @classmethod
-    def from_name(cls, name):
+    def from_name(cls, name: str) -> "TimeUnit | None":
         for s in cls:
             if s.name == name:
                 return s
 
     @classmethod
-    def from_abbrev(cls, abbrev):
+    def from_abbrev(cls, abbrev: str) -> "TimeUnit | None":
         for s in cls:
             if s.abbrev == abbrev:
                 return s
 
     @classmethod
-    def from_string(cls, string):
+    def from_string(cls, string: str) -> "TimeUnit | None":
         for s in cls:
             if s.name == string or s.abbrev == string:
                 return s
 
-def as_timeunit(obj):
+def as_timeunit(obj: object) -> TimeUnit | None:
     if isinstance(obj, TimeUnit):
         return obj
     elif isinstance(obj, str):
@@ -104,10 +105,11 @@ def as_timeunit(obj):
         raise TypeError("cannot convert to a TimeUnit an object of type {}"
                         .format(type(obj).__name__))
 
-def timedelta_to_unit(tdelta, unit):
+def timedelta_to_unit(tdelta: timedelta, unit: TimeUnit | str) -> float:
     """Convert timedelta *tdelta* to the given *unit*.
 
     Return a float.
     """
     timeunit = as_timeunit(unit)
+    assert timeunit is not None
     return tdelta / timeunit.value

@@ -9,14 +9,14 @@ import time
 
 class TestTime(unittest.TestCase):
 
-    def test_one_sec(self):
+    def test_one_sec(self) -> None:
         time.sleep(1.0)
 
-    def test_half_sec(self):
+    def test_half_sec(self) -> None:
         time.sleep(0.5)
 
-    def test_three_sec(self):
+    def test_three_sec(self) -> None:
         time.sleep(3.0)
 
-    def test_one_and_half_sec(self):
+    def test_one_and_half_sec(self) -> None:
         time.sleep(1.5)

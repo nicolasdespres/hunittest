@@ -11,3 +11,6 @@
 # Test doc files render
 /README.html
 /HACKING.html
+
+# Pyenv files
+/.python-version
